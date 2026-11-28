@@ -19,6 +19,16 @@ MVP_DEPARTMENTS = {
 
 
 LEGACY_COLUMNS = {
+    "addresses": {"district": "VARCHAR"},
+    "incidents": {
+        "district_key": "VARCHAR",
+        "district_label": "VARCHAR",
+        "problem": "VARCHAR",
+        "last_report_at": "DATETIME",
+        "report_ids": "JSON NOT NULL DEFAULT '[]'",
+        "status_changed_at": "DATETIME",
+        "status_changed_by": "VARCHAR REFERENCES auth_users (id)",
+    },
     "cc_workforce": {
         "notifications_enabled": "BOOLEAN NOT NULL DEFAULT 1",
         "sound_enabled": "BOOLEAN NOT NULL DEFAULT 1",

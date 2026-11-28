@@ -163,6 +163,101 @@ class ContactCenterTest(TestCase):
     def finish(self, call_path, status="completed", outcome="unresolved"):
         return self.voice("POST", call_path + "/finish", payload={"status": status, "outcome": outcome})
 
+    def outage_report(self, ticket_id, account, apartment, problem, department=DEPARTMENT):
+        _, path = self.start_call(ticket_id)
+        self.assertTrue(self.voice("POST", path + "/identify", payload={
+            "account_id": account, "apartment": apartment,
+        })["identified"])
+        message = self.voice("POST", path + "/messages", payload={
+            "event_id": "consent", "speaker": "customer", "text": "Да, сохраните обращение.",
+        })
+        data = {
+            "handoff": {
+                "ticket_id": ticket_id, "customer_request": "Проверить подключение", "summary": "Нужна диагностика.",
+                "customer_report": problem, "verified_facts": [], "open_question": "", "secondary_questions": [],
+                "confirmed_at": datetime.now(timezone.utc).isoformat(),
+            },
+            "confirmation_message_id": message["id"], "department": department,
+        }
+        self.voice("POST", path + "/ticket", payload=data)
+        self.assertEqual(self.voice("POST", path + "/ticket", payload=data)["id"], ticket_id)
+        self.finish(path)
+
+    def test_detects_building_outage_and_publishes_only_after_manager_confirmation(self):
+        manager = self.browser_session("manager")
+        operator = self.browser_session("operator")
+        endpoint = "/api/v1/incidents"
+        with closing(sqlite3.connect(self.database)) as db, db:
+            db.execute("UPDATE accounts SET address_id = 'address_100045' WHERE number IN ('100046', '100049', '100052')")
+        self.outage_report("T-OUT-1", "100045", "8", "Нет интернета")
+        self.outage_report("T-OUT-REPEAT", "100045", "8", "Интернет не работает")
+        self.outage_report("T-OUT-2", "100046", "12", "Пропал интернет")
+        self.outage_report("T-OUT-SLOW", "100049", "85", "Скорость упала")
+        self.outage_report("T-OUT-BILLING", "100049", "85", "Нет интернета", department="billing")
+        self.assertFalse(any(item["status"] == "suspected" for item in self.request("GET", endpoint, headers=manager)["items"]))
+        self.outage_report("T-OUT-3", "100052", "16", "Нет интернета")
+        alert = self.request("GET", endpoint, headers=manager)["items"][0]
+        path = f"{endpoint}/{alert['id']}"
+        self.assertEqual((alert["status"], set(alert["report_ids"])), ("suspected", {"T-OUT-REPEAT", "T-OUT-2", "T-OUT-3"}))
+        self.request("GET", endpoint, headers=operator, expected=403)
+        self.request("PATCH", path, payload={"action": "confirm"}, headers=operator, expected=403)
+        self.request("PATCH", path, payload={"action": "close"}, headers=manager, expected=409)
+
+        _, caller = self.start_call("outage-check")
+        self.assertTrue(self.voice("POST", caller + "/identify", payload={"account_id": "100049", "apartment": "85"})["identified"])
+        self.request("PATCH", "/api/v1/tickets/T-OUT-SLOW", payload={"status": "in_progress"}, headers=manager)
+        customer_path = "/api/v1/operator/customers/customer_100049"
+
+        def visible_incidents():
+            account = self.voice("GET", caller + "/account")
+            customer = self.request("GET", customer_path, headers=operator)
+            self.assertEqual(account["active_incidents"], customer["accounts"][0]["active_incidents"])
+            return [incident["id"] for incident in account["active_incidents"]]
+
+        self.assertEqual(visible_incidents(), [])
+        self.assertEqual(self.request("GET", "/api/v1/dashboard", headers=manager)["pending_incidents"], 1)
+        self.assertEqual(self.request("PATCH", path, payload={"action": "confirm"}, headers=manager)["status"], "open")
+        self.assertEqual(visible_incidents(), [alert["id"]])
+        self.assertEqual(self.request("PATCH", path, payload={"action": "close"}, headers=manager)["status"], "resolved")
+        self.assertEqual(visible_incidents(), [])
+        self.outage_report("T-OUT-NEW", "100049", "85", "Нет интернета")
+        self.assertEqual(self.request("GET", "/api/v1/dashboard", headers=manager)["pending_incidents"], 0)
+
+    def test_detects_district_outage_with_recent_reports_and_respects_rejection(self):
+        manager = self.browser_session("manager")
+        endpoint = "/api/v1/incidents"
+        with closing(sqlite3.connect(self.database)) as db, db:
+            db.execute("UPDATE addresses SET district = 'Тестовый' WHERE id IN ('address_100045', 'address_100046')")
+            db.execute("UPDATE addresses SET label = 'Санкт-Петербург, Тестовый р-н, ул. Макетная, д. 3' WHERE id = 'address_100049'")
+            db.execute("UPDATE addresses SET district = 'Тестовый район' WHERE id = 'address_100052'")
+        self.outage_report("T-DIST-STALE", "100045", "8", "Постоянные перебои связи")
+        with closing(sqlite3.connect(self.database)) as db, db:
+            db.execute("UPDATE tickets SET created_at = datetime(created_at, '-31 minutes') WHERE id = 'T-DIST-STALE'")
+        self.outage_report("T-DIST-2", "100046", "12", "Нестабильное подключение")
+        self.outage_report("T-DIST-3", "100049", "85", "Сеть постоянно пропадает")
+        self.assertEqual(self.request("GET", "/api/v1/dashboard", headers=manager)["pending_incidents"], 0)
+        self.outage_report("T-DIST-1", "100045", "8", "Постоянные перебои связи")
+        alert = self.request("GET", endpoint, headers=manager)["items"][0]
+        self.assertEqual(alert["address"], "Санкт-Петербург, Тестовый район")
+        self.assertEqual(set(alert["report_ids"]), {"T-DIST-1", "T-DIST-2", "T-DIST-3"})
+        path = f"{endpoint}/{alert['id']}"
+        self.assertEqual(self.request("PATCH", path, payload={"action": "reject"}, headers=manager)["status"], "rejected")
+        self.outage_report("T-DIST-NEW", "100045", "8", "Постоянные перебои связи")
+        self.assertEqual(self.request("GET", "/api/v1/dashboard", headers=manager)["pending_incidents"], 0)
+        self.outage_report("T-DIST-NEW-2", "100046", "12", "Нестабильное подключение")
+        self.outage_report("T-DIST-NEW-3", "100049", "85", "Сеть постоянно пропадает")
+        new_alert = self.request("GET", endpoint, headers=manager)["items"][0]
+        self.assertNotEqual(new_alert["id"], alert["id"])
+        self.assertEqual(set(new_alert["report_ids"]), {"T-DIST-NEW", "T-DIST-NEW-2", "T-DIST-NEW-3"})
+        self.request("PATCH", f"{endpoint}/{new_alert['id']}", payload={"action": "confirm"}, headers=manager)
+        for account, apartment, expected in (("100052", "16", [new_alert["id"]]), ("100054", "217", [])):
+            _, caller = self.start_call(f"district-lookup-{account}")
+            self.assertTrue(self.voice("POST", caller + "/identify", payload={
+                "account_id": account, "apartment": apartment,
+            })["identified"])
+            detail = self.voice("GET", caller + "/account")
+            self.assertEqual([incident["id"] for incident in detail["active_incidents"]], expected)
+
     def test_voice_and_operator_lifecycle_with_crm_and_case(self):
         self.operator("GET", "/workspace", token=None, expected=401)
         self.operator("GET", "/workspace", token=None, headers={"Authorization": "Basic wrong"}, expected=401)

@@ -65,7 +65,7 @@ class TicketRecord(Base):
     priority: Mapped[str]
     title: Mapped[str]
     summary: Mapped[str]
-    created_at: Mapped[datetime]
+    created_at: Mapped[datetime] = mapped_column(index=True)
     queued_at: Mapped[datetime]
     started_at: Mapped[datetime | None]
     closed_at: Mapped[datetime | None]

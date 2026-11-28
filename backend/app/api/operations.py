@@ -6,16 +6,19 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, select
+from pydantic import AwareDatetime, BaseModel, ConfigDict
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
-from app.auth import session_is_active
+from app.auth import CurrentUser, require_manager, session_is_active
 from app.core import operations as core
 from app.core.contact_center import service
+from app.core.crm_models import Address, Incident
 from app.core.operations_models import CallRecord, EmployeeRecord, OperationEvent, TicketRecord
+from app.core.outages import incident_event
 from app.core.schemas import (
-    CallDetail, CallList, CallMessage, CallOutcome, CallStatus, Dashboard, Department,
+    CallDetail, CallList, CallMessage, CallOutcome, CallStatus, Dashboard, DashboardIncident, Department,
     Employee, EmployeeUpdate, JoinCredentials, Ticket, TicketList, TicketPriority, TicketStatus, TicketUpdate,
 )
 from app.database import SessionLocal, get_db
@@ -117,6 +120,77 @@ def update_ticket(ticket_id: str, patch: TicketUpdate, db: Database) -> Ticket:
 @router.get("/dashboard", response_model=Dashboard)
 def get_dashboard(db: Database) -> Dashboard:
     return core.get_dashboard(db)
+
+
+IncidentStatus = Literal["suspected", "open", "investigating", "resolved", "rejected"]
+
+
+class ManagedIncident(DashboardIncident):
+    status: IncidentStatus
+    report_ids: list[str]
+    last_report_at: AwareDatetime | None
+
+
+class IncidentList(BaseModel):
+    items: list[ManagedIncident]
+    total: int
+    limit: int
+    offset: int
+
+
+class IncidentUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    action: Literal["confirm", "reject", "close"]
+
+
+def managed_incident(incident: Incident, address: str) -> ManagedIncident:
+    return ManagedIncident(
+        id=incident.id, title=incident.title, description=incident.description, status=incident.status,
+        address=incident.district_label or address, started_at=core.utc(incident.started_at),
+        estimated_resolution_at=core.utc(incident.estimated_resolution_at), report_ids=incident.report_ids,
+        last_report_at=core.utc(incident.last_report_at),
+    )
+
+
+@router.get("/incidents")
+def list_incidents(db: Database, limit: PageSize = 25, offset: PageOffset = 0) -> IncidentList:
+    rows = db.execute(select(Incident, Address.label).join(Address).order_by(
+        case((Incident.status == "suspected", 0), (Incident.status.in_(("open", "investigating")), 1), else_=2),
+        func.coalesce(Incident.last_report_at, Incident.started_at).desc(), Incident.id,
+    ).limit(limit).offset(offset))
+    return IncidentList(
+        items=[managed_incident(*row) for row in rows],
+        total=db.scalar(select(func.count()).select_from(Incident)), limit=limit, offset=offset,
+    )
+
+
+@router.patch("/incidents/{incident_id}", responses={
+    404: {"description": "Инцидент не найден"},
+    409: {"description": "Недопустимый переход статуса"},
+})
+def update_incident(
+    incident_id: str, change: IncidentUpdate, manager: Annotated[CurrentUser, Depends(require_manager)],
+) -> ManagedIncident:
+    allowed, target = {
+        "confirm": (("suspected",), "open"),
+        "reject": (("suspected",), "rejected"),
+        "close": (("open", "investigating"), "resolved"),
+    }[change.action]
+    with service.transaction() as db:
+        incident = db.get(Incident, incident_id)
+        if incident is None:
+            raise HTTPException(status_code=404, detail="Инцидент не найден")
+        if incident.status != target:
+            if incident.status not in allowed:
+                raise HTTPException(status_code=409, detail="Статус инцидента изменился. Обновите список.")
+            incident.status = target
+            incident.status_changed_at = core.utc_now()
+            incident.status_changed_by = manager.id
+            if change.action == "confirm":
+                incident.description = "Подтверждена массовая сетевая авария по этому адресу или району."
+            incident_event(db, f"incident.{target}", incident.status_changed_at, published=target != "rejected")
+        return managed_incident(incident, db.get(Address, incident.address_id).label)
 
 
 @router.get("/employees", response_model=list[Employee])

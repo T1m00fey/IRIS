@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import case, func, select, update
 from sqlalchemy.orm import Session
 
-from app.core.crm_models import Address, Customer, Incident
+from app.core.crm_models import ACTIVE_INCIDENT_STATUSES, Address, Customer, Incident
 from app.core.operations_models import CallMessageRecord, CallRecord, EmployeeRecord, OperationEvent, TicketRecord
 from app.core.schemas import (
     AIAction, Call, CallDetail, CallEvent, CallList, CallMessage, CallStatus, Dashboard,
@@ -220,8 +220,8 @@ def get_dashboard(db: Session) -> Dashboard:
         .where(CallRecord.ended_at >= CallRecord.connected_at)
     )
     incidents = db.execute(
-        select(Incident, Address.label).join(Address, Incident.address_id == Address.id)
-        .where(Incident.status.in_(["open", "investigating"])).order_by(Incident.started_at.desc(), Incident.id)
+        select(Incident, func.coalesce(Incident.district_label, Address.label)).join(Address)
+        .where(Incident.status.in_(ACTIVE_INCIDENT_STATUSES)).order_by(Incident.started_at.desc(), Incident.id)
     )
     recent = db.execute(call_query().order_by(CallRecord.started_at.desc(), CallRecord.id).limit(6))
     return Dashboard(
@@ -230,6 +230,7 @@ def get_dashboard(db: Session) -> Dashboard:
         average_duration_seconds=round(average_duration) if average_duration is not None else None,
         tickets_by_department=[DepartmentCount(department=dep, count=ticket_counts.get(dep, 0)) for dep in Department],
         recent_calls=[call_item(*row) for row in recent],
+        pending_incidents=db.scalar(select(func.count()).select_from(Incident).where(Incident.status == "suspected")),
         active_incidents=[DashboardIncident(
             id=row.id, title=row.title, description=row.description, status=row.status, address=address,
             started_at=utc(row.started_at), estimated_resolution_at=utc(row.estimated_resolution_at),

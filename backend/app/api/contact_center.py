@@ -166,7 +166,7 @@ def dashboard(employee_id: Operator) -> OperatorDashboard:
         account = account_for_call(db, employee.active_call_id) if employee.active_call_id else None
         return OperatorDashboard(
             employee=employee, queue=queue, recent_cases=recent_cases,
-            active_incidents=crm.account_detail(account).active_incidents if account else [],
+            active_incidents=crm.account_detail(db, account).active_incidents if account else [],
         )
 
 
@@ -288,7 +288,7 @@ def call_account(call_id: str, employee_id: Operator, db: Database) -> AccountDe
     account = account_for_call(db, call_id)
     if account is None:
         raise operations.RecordNotFound("Подтверждённый лицевой счёт не найден")
-    return crm.account_detail(account)
+    return crm.account_detail(db, account)
 
 
 @router.post("/calls/{call_id}/confirm-summary")
@@ -443,7 +443,7 @@ def analytics(employee_id: Operator, db: Database) -> OperatorAnalytics:
     )
 
 
-OPERATOR_REFRESH_RESOURCES = {"queue", "workspace", "employees"}
+OPERATOR_REFRESH_RESOURCES = {"queue", "workspace", "employees", "incidents"}
 
 
 def operator_events_after(employee_id: str, cursor: int) -> list[tuple[int, str | None]]:

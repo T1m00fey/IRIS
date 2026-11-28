@@ -202,3 +202,4 @@ class Dashboard(BaseModel):
     tickets_by_department: list[DepartmentCount]
     recent_calls: list[Call]
     active_incidents: list[DashboardIncident]
+    pending_incidents: int

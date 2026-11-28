@@ -49,6 +49,7 @@ export function AppShell() {
   const employee = workspace.data?.employee
   const isDesk = !isManager && location.pathname === '/workspace'
   const incidents = dashboard.data?.active_incidents || []
+  const pendingIncidents = dashboard.data?.pending_incidents ?? 0
   const connectionText = { live: 'В реальном времени', polling: 'Резервное обновление', connecting: 'Подключение…' }[connection]
   const CollapseIcon = collapsed ? PanelLeftOpen : PanelLeftClose
 
@@ -148,9 +149,13 @@ export function AppShell() {
           <div className="notification-anchor" data-shell-popover>
             <Button variant="ghost" className="icon-button" aria-label="Уведомления" aria-expanded={popover === 'notifications'}
               aria-controls={popover === 'notifications' ? 'shell-notifications' : undefined}
-              onClick={event => togglePopover('notifications', event.currentTarget)}><Bell size={22} />{incidents.length > 0 && <i className="notification-dot" />}</Button>
+              onClick={event => togglePopover('notifications', event.currentTarget)}><Bell size={22} />{(pendingIncidents > 0 || incidents.length > 0) && <i className="notification-dot" />}</Button>
             {popover === 'notifications' && <section id="shell-notifications" className="panel notification-popover" aria-label="Уведомления">
-              <strong>Уведомления</strong>{incidents.length > 0 ? <ul>{incidents.map(incident => <li key={incident.id}>{incident.title}</li>)}</ul> : <p>Новых уведомлений нет</p>}
+              <strong>Уведомления</strong>
+              {pendingIncidents > 0 || incidents.length > 0 ? <ul>
+                {pendingIncidents > 0 && <li><Link className="text-link" to="/incidents" onClick={dismissOverlays}>Возможные аварии ({pendingIncidents})</Link></li>}
+                {incidents.map(incident => <li key={incident.id}>{incident.title}</li>)}
+              </ul> : <p>Новых уведомлений нет</p>}
             </section>}
           </div>
           <div className="notification-anchor" data-shell-popover>

@@ -1,10 +1,13 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.auth.models import UserRecord
 from app.database import Base
+
+
+ACTIVE_INCIDENT_STATUSES = ("open", "investigating")
 
 
 class Customer(Base):
@@ -35,8 +38,7 @@ class Address(Base):
 
     id: Mapped[str] = mapped_column(primary_key=True)
     label: Mapped[str]
-
-    incidents: Mapped[list["Incident"]] = relationship(order_by="Incident.started_at.desc()")
+    district: Mapped[str | None]
 
 
 class Tariff(Base):
@@ -87,3 +89,10 @@ class Incident(Base):
     status: Mapped[str]
     started_at: Mapped[datetime] = mapped_column(DateTime)
     estimated_resolution_at: Mapped[datetime | None] = mapped_column(DateTime)
+    district_key: Mapped[str | None] = mapped_column(index=True)
+    district_label: Mapped[str | None]
+    problem: Mapped[str | None]
+    last_report_at: Mapped[datetime | None]
+    report_ids: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")
+    status_changed_at: Mapped[datetime | None]
+    status_changed_by: Mapped[str | None] = mapped_column(ForeignKey(UserRecord.id))

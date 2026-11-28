@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from sqlalchemy import and_, func, or_, select, union_all
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from app.core.crm_models import Account, Address, Customer, Tariff
+from app.core.crm_models import ACTIVE_INCIDENT_STATUSES, Account, Address, Customer, Incident, Tariff
 from app.core.crm_schemas import (
     AccountDetail,
     AccountSummary,
@@ -16,7 +16,7 @@ from app.core.crm_schemas import (
     PaymentDetail,
 )
 from app.core.operations_models import CallRecord, TicketRecord
-from app.database import normalize_text, phone_digits
+from app.database import address_key, district_key, normalize_text, phone_digits
 
 
 def with_utc(value: datetime | None) -> datetime | None:
@@ -33,9 +33,20 @@ def account_summary(account: Account, address: Address, tariff: Tariff) -> Accou
     )
 
 
-def account_detail(account: Account) -> AccountDetail:
+def account_detail(db: Session, account: Account) -> AccountDetail:
+    address = account.address
+    district = district_key(address.label, address.district)
+    incidents = db.scalars(
+        select(Incident).join(Address, Address.id == Incident.address_id).where(
+            Incident.status.in_(ACTIVE_INCIDENT_STATUSES),
+            or_(
+                and_(Incident.district_key.is_(None), func.address_key(Address.label) == address_key(address.label)),
+                Incident.district_key == district if district else False,
+            ),
+        ).order_by(Incident.started_at.desc(), Incident.id)
+    )
     return AccountDetail(
-        **account_summary(account, account.address, account.tariff).model_dump(),
+        **account_summary(account, address, account.tariff).model_dump(),
         speed_mbps=account.tariff.speed_mbps,
         monthly_fee_kopecks=account.tariff.monthly_fee_kopecks,
         equipment=account.equipment,
@@ -48,8 +59,7 @@ def account_detail(account: Account) -> AccountDetail:
                 started_at=incident.started_at.replace(tzinfo=UTC),
                 estimated_resolution_at=with_utc(incident.estimated_resolution_at),
             )
-            for incident in account.address.incidents
-            if incident.status in ("open", "investigating")
+            for incident in incidents
         ],
         payments=[
             PaymentDetail(
@@ -169,7 +179,7 @@ def get_customer(db: Session, customer_id: str) -> CustomerDetail | None:
         select(Customer)
         .where(Customer.id == customer_id)
         .options(
-            selectinload(Customer.accounts).joinedload(Account.address).selectinload(Address.incidents),
+            selectinload(Customer.accounts).joinedload(Account.address),
             selectinload(Customer.accounts).joinedload(Account.tariff),
             selectinload(Customer.accounts).selectinload(Account.payments),
         )
@@ -178,7 +188,7 @@ def get_customer(db: Session, customer_id: str) -> CustomerDetail | None:
         return None
 
     last_contact = db.execute(contact_times(customer_id)).first()
-    accounts = [account_detail(account) for account in customer.accounts]
+    accounts = [account_detail(db, account) for account in customer.accounts]
     summary = customer_summary(
         customer, accounts[0] if accounts else None, len(accounts), last_contact[1] if last_contact else None,
     )

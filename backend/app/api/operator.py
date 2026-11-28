@@ -139,7 +139,7 @@ def customer_details(customer_id: str, db: Database, employee_id: Operator) -> C
         raise HTTPException(status_code=404, detail="Клиент не найден")
 
     numbers = {number for number, _ in contacts if number is not None}
-    accounts = [account_detail(account) for account in db.scalars(
+    accounts = [account_detail(db, account) for account in db.scalars(
         select(Account).where(Account.customer_id == customer.id, Account.number.in_(numbers)).order_by(Account.number)
     )]
     summary = customer_summary(customer, accounts[0] if accounts else None, len(accounts), max(at for _, at in contacts))

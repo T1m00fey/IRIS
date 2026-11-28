@@ -90,6 +90,7 @@ export interface Dashboard {
   tickets_by_department: { department: Department; count: number }[]
   recent_calls: Call[]
   active_incidents: Incident[]
+  pending_incidents: number
 }
 
 export interface Employee {

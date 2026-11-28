@@ -16,7 +16,7 @@ const managerScreens = [
   ['analytics', '/analytics', 'Аналитика', '/api/v1/manager/analytics'],
   ['team', '/employees', 'Команда', '/api/v1/employees'],
   ['departments', '/departments', 'Команда', '/api/v1/analytics'],
-  ['network-incidents', '/incidents', 'Сетевые инциденты', '/api/v1/dashboard'],
+  ['network-incidents', '/incidents', 'Сетевые инциденты', '/api/v1/incidents'],
 ] as const
 
 const operatorScreens = [

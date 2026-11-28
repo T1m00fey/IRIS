@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 
 export type Connection = 'connecting' | 'live' | 'polling'
-const managerResources = ['calls', 'tickets', 'dashboard', 'employees', 'customers', 'analytics']
+const managerResources = ['calls', 'tickets', 'dashboard', 'employees', 'customers', 'analytics', 'incident_alerts']
 
 export function useLiveEvents(role: 'operator' | 'manager') {
   const client = useQueryClient()

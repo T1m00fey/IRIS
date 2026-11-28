@@ -15,6 +15,7 @@ from app.core.operations import OperationConflict, RecordNotFound, call_item, ge
 from app.core.operations_models import (
     CallMessageRecord, CallMessageSource, CallRecord, HandoffConfirmation, OperationEvent, TicketRecord,
 )
+from app.core.outages import detect_outage
 from app.core.schemas import Call, CallMessage, CallOutcome, CallPhase, CallStatus, Department, Handoff, Ticket
 from app.database import SessionLocal, phone_digits
 
@@ -120,7 +121,7 @@ def get_account_details(call_id: str) -> AccountDetail:
         account = db.get(Account, record.account_number)
         if account is None or account.customer_id != record.customer_id:
             raise OperationConflict("Лицевой счёт не подтверждён для звонка")
-        return account_detail(account)
+        return account_detail(db, account)
 
 
 def append_message(call_id: str, message: MessageInput) -> CallMessage:
@@ -219,11 +220,12 @@ def confirm_ticket(
 
         now = utc_now()
         confirmed_handoff = handoff.model_copy(update={"confirmed_at": message_item(confirmation).created_at})
-        db.add(TicketRecord(
+        ticket = TicketRecord(
             id=handoff.ticket_id, call_id=call_id, customer_id=record.customer_id, account_number=record.account_number,
             department=department, status="queued", priority="normal", title=handoff.customer_request,
             summary=handoff.summary, created_at=now, queued_at=now,
-        ))
+        )
+        db.add(ticket)
         if contact_center_enabled:
             db.add(VoiceReceipt(
                 call_id=call_id, operation="ticket", event_id=str(confirmation_message_id),
@@ -238,6 +240,7 @@ def confirm_ticket(
         record.summary = handoff.summary
         record.handoff = confirmed_handoff.model_dump(mode="json")
         db.flush()
+        detect_outage(db, ticket)
         db.add_all([
             HandoffConfirmation(call_id=call_id, message_id=confirmation_message_id, ticket_id=handoff.ticket_id),
             OperationEvent(
