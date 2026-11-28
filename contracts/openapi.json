@@ -1541,6 +1541,72 @@
         }
       }
     },
+    "/api/v1/employees/{employee_id}/specializations": {
+      "put": {
+        "tags": [
+          "Операции"
+        ],
+        "summary": "Update Employee Specializations",
+        "operationId": "update_employee_specializations_api_v1_employees__employee_id__specializations_put",
+        "security": [
+          {
+            "IrisSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "employee_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Employee Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpecializationsUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Employee"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Требуется вход"
+          },
+          "403": {
+            "description": "Требуются права руководителя"
+          },
+          "404": {
+            "description": "Оператор не найден"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/events": {
       "get": {
         "tags": [
@@ -6109,6 +6175,24 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "specializations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Specialization"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specializations"
+          },
+          "on_shift": {
+            "type": "boolean",
+            "title": "On Shift"
           }
         },
         "type": "object",
@@ -6118,7 +6202,9 @@
           "department",
           "status",
           "is_current",
-          "updated_at"
+          "updated_at",
+          "specializations",
+          "on_shift"
         ],
         "title": "Employee"
       },
@@ -7412,7 +7498,8 @@
                 "type": "null"
               }
             ],
-            "title": "Category"
+            "title": "Category",
+            "description": "Категория Voice AI (SALES, L1, L2 или настроенный код маршрутизации)"
           },
           "priority": {
             "$ref": "#/components/schemas/TicketPriority",
@@ -7433,6 +7520,33 @@
           "event_id"
         ],
         "title": "QueueRequest"
+      },
+      "Specialization": {
+        "type": "string",
+        "enum": [
+          "SALES",
+          "L1",
+          "L2"
+        ],
+        "title": "Specialization"
+      },
+      "SpecializationsUpdate": {
+        "properties": {
+          "specializations": {
+            "items": {
+              "$ref": "#/components/schemas/Specialization"
+            },
+            "type": "array",
+            "uniqueItems": true,
+            "title": "Specializations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "specializations"
+        ],
+        "title": "SpecializationsUpdate"
       },
       "StartCall": {
         "properties": {

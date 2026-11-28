@@ -8,7 +8,7 @@ import { Pagination } from '../../components/Pagination'
 import { StatusBadge } from '../../components/StatusBadge'
 import { Button } from '../../components/ui/button'
 import { CallSummary, Transcript } from '../../features/operations/CallContext'
-import { employeeStatuses, employeeTones, priorities, ticketStatuses, ticketTones } from '../../features/operations/labels'
+import { callDepartments, employeeStatuses, employeeTones, priorities, specializationDepartments, ticketStatuses, ticketTones } from '../../features/operations/labels'
 import { formatDate, formatDuration, formatNumber } from '../../lib/format'
 import { useCall } from '../../pages/CallsPage'
 import type { Collection, Employee } from '../../types/operations'
@@ -186,7 +186,7 @@ export function ContactCenter() {
 
   const configured = queue.data?.departments.length ? queue.data.departments : teamDepartments
   const labels = new Map([...teamDepartments, ...configured].map(item => [item.code, item.name]))
-  const departmentName: DepartmentName = code => code ? labels.get(code) || code : '—'
+  const departmentName: DepartmentName = code => code ? labels.get(code) ?? callDepartments[code] ?? code : '—'
   const entries = new Map(queue.data?.items.map(item => [item.call_id, item]))
   const assigned = new Map<string, QueueEntry>()
   for (const entry of entries.values()) {
@@ -256,8 +256,12 @@ export function ContactCenter() {
             <header className="cc-heading"><h2 id="cc-load-title">Нагрузка отделов</h2></header>
             <ul className="cc-load">
               {configured.map(item => {
-                const team = staff?.filter(person => person.department === item.code)
-                const free = available?.filter(person => person.department === item.code).length
+                const specialization = specializationDepartments.get(item.code)
+                const matchesDirection = (person: Employee) => specialization
+                  ? person.specializations?.includes(specialization)
+                  : person.department === item.code
+                const team = staff?.filter(matchesDirection)
+                const free = available?.filter(person => matchesDirection(person) && (!specialization || person.on_shift)).length
                 const count = waiting?.filter(row => row.department === item.code).length
                 return <li key={item.code}>
                   <strong>{item.name}</strong>

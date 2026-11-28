@@ -13,16 +13,17 @@ from app.core.contact_center.models import (
     VoiceCommandRecord, VoiceReceipt, WorkforceRecord,
 )
 from app.core.contact_center.schemas import (
-    Assignment, CallControlRequest, DepartmentProfile, EmployeeProfile, OperatorSettings, QueueEntry,
-    QueueRequest, VoiceCommand, Workspace,
+    DEPARTMENT_SPECIALIZATIONS, SPECIALIZATION_DEPARTMENTS, Assignment, CallControlRequest, DepartmentProfile,
+    EmployeeProfile, OperatorSettings, QueueEntry, QueueRequest, VoiceCommand, Workspace,
 )
 from app.core.operations import OperationConflict, RecordNotFound, duration_seconds, utc, utc_now
 from app.core.operations_models import CallRecord, EmployeeRecord, OperationEvent, TicketRecord
-from app.core.schemas import CallPhase, CallStatus, EmployeeStatus
+from app.core.schemas import CallPhase, CallStatus, EmployeeStatus, Specialization
 from app.database import SessionLocal
 
 
 LIVE = ("offered", "accepted", "connected")
+SPECIALIZATION_CODES = frozenset(Specialization)
 
 
 def enabled() -> bool:
@@ -107,15 +108,15 @@ def _queue_data(record, now, position):
     )
 
 
-def _waiting(db, department=None):
+def _waiting(db, departments: set[str] | None = None):
     query = select(QueueRecord).where(QueueRecord.state == "waiting").order_by(*_queue_order())
-    if department is not None:
-        query = query.where(QueueRecord.department == department)
+    if departments is not None:
+        query = query.where(QueueRecord.department.in_(departments))
     return db.scalars(query).all()
 
 
 def _queue_entry(db, record, now):
-    position = next((index for index, item in enumerate(_waiting(db, record.department), 1)
+    position = next((index for index, item in enumerate(_waiting(db, {record.department}), 1)
                      if item.call_id == record.call_id), None) if record.state == "waiting" else None
     return _queue_data(record, now, position)
 
@@ -172,6 +173,21 @@ def _requeue(db, record, assignment, state, now):
     _event(db, "call.queued", now, call_id=record.call_id)
 
 
+def _matches_department(employee, profile, department):
+    specialization = DEPARTMENT_SPECIALIZATIONS.get(department)
+    if specialization is not None:
+        return profile is not None and specialization in profile.skills
+    return employee.department == department
+
+
+def _matches_queue(employee, profile, entry):
+    return (
+        _matches_department(employee, profile, entry.department)
+        and (entry.target_employee_id is None or employee.id == entry.target_employee_id)
+        and set(entry.required_skills).issubset(profile.skills if profile else [])
+    )
+
+
 def dispatch(db: Session, now: datetime | None = None) -> None:
     now = now or utc_now()
     expired = db.scalars(select(AssignmentRecord).where(
@@ -202,13 +218,9 @@ def dispatch(db: Session, now: datetime | None = None) -> None:
             )
         }
         for employee, profile in candidates:
-            if employee.id in occupied or employee.department != entry.department:
+            if employee.id in occupied or (profile and (not profile.on_shift or profile.role != "operator")):
                 continue
-            if entry.target_employee_id is not None and employee.id != entry.target_employee_id:
-                continue
-            if profile is not None and (not profile.on_shift or profile.role != "operator"):
-                continue
-            if not set(entry.required_skills).issubset(profile.skills if profile else []):
+            if not _matches_queue(employee, profile, entry):
                 continue
             # Automatic release changes the fairness clock, but not the last explicit availability transition.
             if employee.id in previous:
@@ -245,11 +257,14 @@ def request_operator(db: Session, call_id: str, request: QueueRequest) -> QueueE
     if call.status != CallStatus.ACTIVE or record is not None:
         raise OperationConflict("Передача доступна для активного звонка вне живой очереди")
     rule = db.get(RoutingRule, request.category) if request.category is not None else None
-    department = _department(db, request.department or (rule.department if rule else call.department))
-    skills = sorted(set(request.required_skills) | set(rule.required_skills if rule else []))
+    specialization_department = SPECIALIZATION_DEPARTMENTS.get(request.category)
+    department = _department(
+        db, specialization_department or request.department or (rule.department if rule else call.department),
+    )
+    skills = set(request.required_skills) | set(rule.required_skills if rule else [])
     record = QueueRecord(
         call_id=call_id, department=department.code, category=request.category, priority=request.priority,
-        required_skills=skills, state="waiting", queued_at=now,
+        required_skills=sorted(skills), state="waiting", queued_at=now,
     )
     db.add_all([record, VoiceReceipt(
         call_id=call_id, operation="handoff", event_id=request.event_id, payload_hash=payload_hash,
@@ -280,7 +295,8 @@ def accept_assignment(db: Session, employee_id: str, assignment_id: str) -> Assi
         raise OperationConflict("Предложение больше недоступно")
     call = _call(db, assignment.call_id)
     entry = db.get(QueueRecord, call.id)
-    if call.status != CallStatus.ACTIVE or entry.state != "offered" or employee.department != entry.department:
+    if (call.status != CallStatus.ACTIVE or entry.state != "offered"
+            or not _matches_queue(employee, profile, entry)):
         raise OperationConflict("Предложение больше недоступно")
     assignment.state = "accepted"
     assignment.accepted_at = now
@@ -410,9 +426,9 @@ def request_call_control(db: Session, employee_id: str, assignment_id: str, requ
             if (target.id == employee_id or target.status != "available" or (profile and not profile.on_shift)
                     or _live_assignment(db, employee_id=target.id)):
                 raise OperationConflict("Сотрудник недоступен для перевода")
-            if request.department is not None and request.department != target.department:
-                raise OperationConflict("Сотрудник работает в другом отделе")
-        department = _department(db, target.department if target else request.department)
+            if not _matches_department(target, profile, request.department or target.department):
+                raise OperationConflict("Сотрудник не обслуживает выбранное направление")
+        department = _department(db, request.department or (target.department if target else None))
         if target is None and department.code == db.get(QueueRecord, assignment.call_id).department:
             raise OperationConflict("Звонок уже обслуживается в этом отделе")
         payload = {**parameters, "department": department.code, "request": parameters}
@@ -472,10 +488,23 @@ def list_departments(db: Session) -> list[DepartmentProfile]:
 
 
 def list_queue(db: Session, employee_id: str) -> list[QueueEntry]:
-    employee, _ = _employee(db, employee_id)
+    employee, profile = _employee(db, employee_id)
     now = utc_now()
     dispatch(db, now)
-    return [_queue_data(record, now, index) for index, record in enumerate(_waiting(db, employee.department), 1)]
+    skills = profile.skills if profile else []
+    departments = {department for code, department in SPECIALIZATION_DEPARTMENTS.items() if code in skills}
+    departments.add(employee.department)
+    positions: dict[str, int] = {}
+    result = []
+    for entry in _waiting(db, departments):
+        positions[entry.department] = positions.get(entry.department, 0) + 1
+        if entry.department in DEPARTMENT_SPECIALIZATIONS:
+            visible = _matches_queue(employee, profile, entry)
+        else:
+            visible = entry.department == employee.department
+        if visible:
+            result.append(_queue_data(entry, now, positions[entry.department]))
+    return result
 
 
 def list_team(db: Session, employee_id: str) -> list[EmployeeProfile]:
@@ -487,6 +516,28 @@ def list_team(db: Session, employee_id: str) -> list[EmployeeProfile]:
     rows = db.execute(select(EmployeeRecord, WorkforceRecord).outerjoin(WorkforceRecord).order_by(EmployeeRecord.id))
     return [_employee_profile(employee, profile, assignments.get(employee.id), own=employee.id == employee_id)
             for employee, profile in rows if (profile.company if profile else None) == company]
+
+
+def set_specializations(db: Session, employee_id: str, specializations: set[Specialization]):
+    employee, profile = _employee(db, employee_id)
+    skills = profile.skills if profile else []
+    if set(skills).intersection(SPECIALIZATION_CODES) == specializations:
+        return employee, profile
+
+    profile = _profile_for_write(db, employee, profile)
+    profile.skills = [skill for skill in skills if skill not in SPECIALIZATION_CODES] + [
+        code.value for code in Specialization if code in specializations
+    ]
+    now = utc_now()
+    _event(db, "employee.specializations_updated", now)
+    if enabled():
+        assignment = _live_assignment(db, employee_id=employee_id)
+        if assignment and assignment.state == "offered":
+            entry = db.get(QueueRecord, assignment.call_id)
+            if not _matches_queue(employee, profile, entry):
+                _requeue(db, entry, assignment, "ended", now)
+        dispatch(db, now)
+    return employee, profile
 
 
 def _set_presence(db, employee, profile, status, now):

@@ -69,6 +69,47 @@ test('team filters and connected calls use manager data', async ({ page }) => {
   await expect(page).toHaveURL(/\/calls\/call_1042$/)
 })
 
+test('manager updates multiple specializations and sees them after reload', async ({ context, page }) => {
+  test.skip(process.env.IRIS_E2E_WRITE !== '1', 'Use a fresh demo SQLite database for mutations')
+  await page.setViewportSize({ width: 390, height: 844 })
+  const endpoint = '/api/v1/employees/operator_1/specializations'
+  const response = await context.request.get('/api/v1/employees')
+  expect(response.ok()).toBeTruthy()
+  const employees = await response.json() as { id: string; specializations: string[] }[]
+  const original = employees.find(person => person.id === 'operator_1')!.specializations
+  const openDetails = async () => {
+    await page.getByRole('button', { name: 'Действия для сотрудника Александра Орлова' }).click()
+    await page.getByRole('button', { name: 'Сведения о сотруднике' }).click()
+  }
+  const details = page.getByRole('dialog', { name: 'Александра Орлова' })
+  const sales = details.getByRole('checkbox', { name: /^SALES/ })
+  const firstLine = details.getByRole('checkbox', { name: /^L1/ })
+  const secondLine = details.getByRole('checkbox', { name: /^L2/ })
+  const save = details.getByRole('button', { name: 'Сохранить специализации' })
+  try {
+    await page.goto('/employees')
+    await openDetails()
+    await sales.check()
+    await firstLine.check()
+    await secondLine.check()
+    await save.click()
+    await expect(details.getByRole('status')).toHaveText('Специализации сохранены')
+    await page.reload()
+    await openDetails()
+    await expect(sales).toBeChecked()
+    await expect(firstLine).toBeChecked()
+    await expect(secondLine).toBeChecked()
+    await firstLine.uncheck()
+    await save.click()
+    await expect(details.getByRole('status')).toHaveText('Специализации сохранены')
+    await details.getByRole('button', { name: 'Закрыть сведения' }).click()
+    await expect(page.getByRole('row', { name: /Александра Орлова/ }).getByText('SALES, L2')).toBeVisible()
+  } finally {
+    const reset = await context.request.put(endpoint, { data: { specializations: original } })
+    expect(reset.ok()).toBeTruthy()
+  }
+})
+
 test('team and departments routes work on a narrow viewport with the demo API', async ({ context, page }) => {
   const response = await context.request.get('/api/v1/manager/contact-center?state=connected')
   expect(response.ok()).toBeTruthy()

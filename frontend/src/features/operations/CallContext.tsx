@@ -8,7 +8,7 @@ import { formatDate, formatDuration } from '../../lib/format'
 import { formatMoney, serviceStatuses } from '../crm/CrmElements'
 import type { CustomerDetail } from '../crm/types'
 import type { CallDetail } from '../../types/operations'
-import { callStatuses, callTones, departments, outcomes, phases, ticketStatuses, ticketTones } from './labels'
+import { callDepartments, callStatuses, callTones, outcomes, phases, ticketStatuses, ticketTones } from './labels'
 
 const speakers: Record<string, string> = { customer: 'Клиент', caller: 'Клиент', ai: 'ИИ', assistant: 'ИИ', operator: 'Оператор', system: 'Система' }
 const eventNames: Record<string, string> = {
@@ -80,7 +80,7 @@ export function CallRecord({ call }: { call: CallDetail }) {
       <dl className="key-values">
         <div><dt>Абонент</dt><dd>{call.customer_id ? <Link className="text-link" to={profilePath}>{call.customer_name || 'Карточка клиента'}</Link> : call.customer_name || 'Клиент не определён'}</dd></div>
         <div><dt>Телефон · Лицевой счёт</dt><dd>{call.caller_phone_masked || '—'} · {call.account_number || '—'}</dd></div>
-        <div><dt>Отдел</dt><dd>{call.department ? departments[call.department] : '—'}</dd></div>
+        <div><dt>Отдел</dt><dd>{call.department ? callDepartments[call.department] ?? call.department : '—'}</dd></div>
         <div><dt>Технический статус</dt><dd><StatusBadge tone={callTones[call.status]}>{callStatuses[call.status]}</StatusBadge></dd></div>
         <div><dt>Фаза · Результат</dt><dd>{call.phase ? phases[call.phase] : '—'} · {outcomes[call.outcome]}</dd></div>
         <div><dt>Начало · Длительность</dt><dd>{formatDate(call.started_at)} · {formatDuration(call.duration_seconds)}</dd></div>

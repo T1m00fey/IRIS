@@ -90,6 +90,12 @@ class EmployeeStatus(str, Enum):
     WRAP_UP = "wrap_up"
 
 
+class Specialization(str, Enum):
+    SALES = "SALES"
+    L1 = "L1"
+    L2 = "L2"
+
+
 class Employee(BaseModel):
     id: str
     full_name: str
@@ -97,6 +103,8 @@ class Employee(BaseModel):
     status: EmployeeStatus
     is_current: bool
     updated_at: datetime
+    specializations: list[Specialization] | None
+    on_shift: bool
 
 
 class EmployeeUpdate(BaseModel):

@@ -3,11 +3,12 @@ from datetime import datetime, timezone
 from sqlalchemy import case, func, select, update
 from sqlalchemy.orm import Session
 
+from app.core.contact_center.models import WorkforceRecord
 from app.core.crm_models import Address, Customer, Incident
 from app.core.operations_models import CallMessageRecord, CallRecord, EmployeeRecord, OperationEvent, TicketRecord
 from app.core.schemas import (
     AIAction, Call, CallDetail, CallEvent, CallList, CallMessage, CallStatus, Dashboard,
-    DashboardIncident, Department, DepartmentCount, Employee, Handoff,
+    DashboardIncident, Department, DepartmentCount, Employee, Handoff, Specialization,
     Ticket, TicketList, TicketStatus, TicketUpdate,
 )
 
@@ -237,13 +238,20 @@ def get_dashboard(db: Session) -> Dashboard:
     )
 
 
-def employee_item(record: EmployeeRecord) -> Employee:
+def employee_item(record: EmployeeRecord, profile: WorkforceRecord | None) -> Employee:
+    skills = profile.skills if profile else []
+    specializations = None if profile and profile.role != "operator" else [
+        code for code in Specialization if code in skills
+    ]
     return Employee(
         id=record.id, full_name=record.full_name, department=record.department,
         status=record.status, is_current=record.is_current, updated_at=utc(record.updated_at),
+        specializations=specializations, on_shift=profile.on_shift if profile else True,
     )
 
 
 def list_employees(db: Session) -> list[Employee]:
-    employees = db.scalars(select(EmployeeRecord).order_by(EmployeeRecord.is_current.desc(), EmployeeRecord.id))
-    return [employee_item(record) for record in employees]
+    employees = db.execute(select(EmployeeRecord, WorkforceRecord).outerjoin(WorkforceRecord).order_by(
+        EmployeeRecord.is_current.desc(), EmployeeRecord.id,
+    ))
+    return [employee_item(employee, profile) for employee, profile in employees]

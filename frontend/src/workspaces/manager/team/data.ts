@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../../api/client'
 import { departments } from '../../../features/operations/labels'
-import type { Department, Employee } from '../../../types/operations'
+import type { Department, Employee, Specialization } from '../../../types/operations'
 import { useContactCenterQueue } from '../contact-center-data'
 
 interface DepartmentProfile {
@@ -16,6 +16,23 @@ export interface ConnectedCall {
 
 export function useTeam() {
   return useQuery({ queryKey: ['employees'], queryFn: ({ signal }) => api<Employee[]>('/api/v1/employees', { signal }) })
+}
+
+export function useSaveSpecializations(employeeId: string) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (specializations: Specialization[]) => api<Employee>(
+      '/api/v1/employees/' + encodeURIComponent(employeeId) + '/specializations',
+      { method: 'PUT', body: JSON.stringify({ specializations }) },
+    ),
+    onSuccess: async employee => {
+      await client.cancelQueries({ queryKey: ['employees'] })
+      client.setQueryData<Employee[]>(['employees'], people => people?.map(person =>
+        person.id === employee.id ? employee : person,
+      ))
+      void client.invalidateQueries({ queryKey: ['employees'] })
+    },
+  })
 }
 
 export function useTeamCalls() {

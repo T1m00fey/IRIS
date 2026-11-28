@@ -7,11 +7,11 @@ import { Pagination } from '../../../components/Pagination'
 import { StatusBadge } from '../../../components/StatusBadge'
 import { Button } from '../../../components/ui/button'
 import { MetricCard } from '../../../components/ui/MetricCard'
-import { employeeStatuses, employeeTones } from '../../../features/operations/labels'
+import { employeeStatuses, employeeTones, specializationCodes, specializationDepartments, specializationLabels } from '../../../features/operations/labels'
 import { formatDate, formatDuration, formatNumber } from '../../../lib/format'
 import { useAnalytics } from '../../../pages/AnalyticsPage'
-import type { Employee, EmployeeStatus } from '../../../types/operations'
-import { teamDepartments, useTeam, useTeamCalls, type ConnectedCall } from './data'
+import type { Employee, EmployeeStatus, Specialization } from '../../../types/operations'
+import { teamDepartments, useSaveSpecializations, useTeam, useTeamCalls, type ConnectedCall } from './data'
 import './team.css'
 
 const tabs = [
@@ -63,6 +63,33 @@ function EmployeeActions({ person, call, showDetails }: { person: Employee; call
   </>
 }
 
+function SpecializationsForm({ person }: { person: Employee }) {
+  const saved = person.specializations ?? []
+  const [draft, setDraft] = useState<Specialization[] | null>(null)
+  const selected = draft ?? saved
+  const save = useSaveSpecializations(person.id)
+  const changed = selected.length !== saved.length || selected.some(code => !saved.includes(code))
+
+  return <form className="team-specializations" onSubmit={event => {
+    event.preventDefault()
+    save.mutate(selected, { onSuccess: () => setDraft(null) })
+  }}>
+    <fieldset disabled={save.isPending}>
+      <legend>Специализации</legend>
+      {specializationCodes.map(code => <label key={code}>
+        <input type="checkbox" checked={selected.includes(code)} onChange={event => {
+          save.reset()
+          setDraft(event.target.checked ? [...selected, code] : selected.filter(item => item !== code))
+        }} />
+        <span><strong>{code}</strong> · {specializationLabels[code]}</span>
+      </label>)}
+    </fieldset>
+    <Button type="submit" disabled={!changed || save.isPending}>{save.isPending ? 'Сохранение…' : 'Сохранить специализации'}</Button>
+    {save.isError && <p role="alert">{save.error.message}</p>}
+    {save.isSuccess && <p className="muted" role="status">Специализации сохранены</p>}
+  </form>
+}
+
 export function TeamPage({ initialTab = 'employees' }: { initialTab?: Tab }) {
   const [localTab, setLocalTab] = useState(initialTab)
   const [search, setSearch] = useState('')
@@ -83,7 +110,7 @@ export function TeamPage({ initialTab = 'employees' }: { initialTab?: Tab }) {
   const people = employeeQuery.data ?? []
   const calls = contact.data?.enabled && !contact.isError ? contact.data.calls : undefined
   const hasCalls = Boolean(calls?.size)
-  const configuredDepartments = contact.data?.departments ?? []
+  const configuredDepartments = contact.data?.departments.filter(item => !specializationDepartments.has(item.code)) ?? []
   const legacyDepartments = configuredDepartments.length ? [] : analytics.data?.departments.map(row => row.department) ?? []
   const configured = teamDepartments(configuredDepartments, people, legacyDepartments)
   const labels = new Map(configured.map(item => [item.code, item.name]))
@@ -184,7 +211,7 @@ export function TeamPage({ initialTab = 'employees' }: { initialTab?: Tab }) {
                             Сотрудник <ArrowDownUp size={13} aria-hidden="true" />
                           </button>
                         </th>
-                        <th scope="col">Отдел</th><th scope="col">Статус</th><th scope="col">Текущий звонок</th><th scope="col" aria-label="Действия" />
+                        <th scope="col">Отдел</th><th scope="col">Специализации</th><th scope="col">Статус</th><th scope="col">Текущий звонок</th><th scope="col" aria-label="Действия" />
                       </tr></thead>
                       <tbody>{filtered.slice(currentOffset, currentOffset + pageSize).map(person => {
                         const call = calls?.get(person.id)
@@ -192,6 +219,7 @@ export function TeamPage({ initialTab = 'employees' }: { initialTab?: Tab }) {
                         return <tr key={person.id}>
                           <th scope="row"><span className="team-person"><span className="avatar" aria-hidden="true">{initials}</span><span>{person.full_name}</span></span></th>
                           <td><span className="team-department-tag">{labels.get(person.department) ?? person.department}</span></td>
+                          <td>{person.specializations?.length ? person.specializations.join(', ') : <span className="muted">—</span>}</td>
                           <td><StatusBadge tone={employeeTones[person.status]}>{employeeStatuses[person.status]}</StatusBadge></td>
                           <td>{call ? <CallLink call={call} now={now} /> : <span className="muted">—</span>}</td>
                           <td><EmployeeActions person={person} call={call} showDetails={() => setDetailsId(person.id)} /></td>
@@ -220,7 +248,7 @@ export function TeamPage({ initialTab = 'employees' }: { initialTab?: Tab }) {
             {localTab === 'roles' && <dl className="team-roles">
               <div><dt><Headset size={18} /> Оператор <code>OPERATOR</code></dt><dd>Назначенные звонки, доступные обращения и личные настройки.</dd></div>
               <div><dt><ShieldCheck size={18} /> Руководитель <code>MANAGER</code></dt><dd>Общие данные CRM, звонков, обращений, команды и аналитики.</dd></div>
-              <div><dt>Специализация</dt><dd>Contact Center использует настроенные навыки при назначении звонков. В списке руководителя доступны отдел и рабочий статус сотрудника.</dd></div>
+              <div><dt>Специализации</dt><dd>Откройте сведения о сотруднике, чтобы назначить ему SALES, L1 или L2.</dd></div>
             </dl>}
           </div>
         </section>
@@ -274,6 +302,7 @@ export function TeamPage({ initialTab = 'employees' }: { initialTab?: Tab }) {
           <div><dt>Статус обновлён</dt><dd>{formatDate(details.updated_at)}</dd></div>
           {detailsCall && <div><dt>Текущий звонок</dt><dd><CallLink call={detailsCall} now={now} /></dd></div>}
         </dl>}
+        {details?.specializations && <SpecializationsForm key={details.id} person={details} />}
       </dialog>
     </div>
   </>

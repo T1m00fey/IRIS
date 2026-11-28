@@ -19,7 +19,7 @@ from app.auth import demo_enabled, require_manager
 from app.auth.credentials import seed_auth
 from app.auth.router import router as auth_router
 from app.core.contact_center import service
-from app.core.contact_center.initialize import initialize, require_schema
+from app.core.contact_center.initialize import add_default_departments, initialize, require_schema
 from app.core.crm_seed import seed_crm
 from app.core.operations_seed import seed_operations
 from app.database import DATABASE_PATH, SessionLocal
@@ -47,11 +47,14 @@ async def lifespan(app: FastAPI):
     if service.enabled():
         service.timeout("IRIS_ASSIGNMENT_TIMEOUT_SECONDS", 15)
         service.timeout("IRIS_CONNECTION_TIMEOUT_SECONDS", 30)
-    if DATABASE_PATH == ":memory:" or not Path(DATABASE_PATH).exists():
+    new_database = DATABASE_PATH == ":memory:" or not Path(DATABASE_PATH).exists()
+    if new_database:
         initialize()
     else:
         require_schema()
     with SessionLocal.begin() as session:
+        if service.enabled() and not new_database:
+            add_default_departments(session, specializations_only=True)
         if demo_enabled():
             seed_crm(session)
             seed_operations(session)

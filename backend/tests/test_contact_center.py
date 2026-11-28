@@ -578,6 +578,66 @@ class ContactCenterTest(TestCase):
         self.handoff(third_path)
         self.assertEqual(self.voice("GET", third_path + "/assignment")["employee_id"], "operator_2")
 
+    def test_voice_specializations_wait_and_route_across_departments(self):
+        self.stop_api()
+        with closing(sqlite3.connect(self.database)) as db, db:
+            db.execute("DELETE FROM cc_departments WHERE code LIKE 'specialization_%'")
+        self.start_api()
+
+        manager = self.browser_session("manager")
+        path = "/api/v1/employees/operator_1/specializations"
+        payload = {"specializations": ["SALES", "L1"]}
+        self.request("PUT", path, payload=payload, expected=401)
+        self.request("PUT", path, payload=payload, headers=self.browser_session("operator"), expected=403)
+        self.request("PUT", path, payload={"specializations": ["invalid"]}, headers=manager, expected=422)
+        self.request("PUT", path, payload=payload, headers=manager)
+
+        _, sales_path = self.start_call("provider/sales")
+        sales = self.handoff(sales_path, category="SALES", department="connection")
+        self.assertEqual((sales["department"], sales["state"]), ("specialization_sales", "offered"))
+        sales_offer = self.voice("GET", sales_path + "/assignment")
+        repeated = self.handoff(sales_path, category="SALES", department="connection")
+        self.assertEqual((repeated["department"], repeated["state"]), (sales["department"], sales["state"]))
+        self.assertEqual(self.voice("GET", sales_path + "/assignment"), sales_offer)
+        self.assertEqual(sales_offer["employee_id"], "operator_1")
+        self.accept(sales_offer)
+        self.voice("POST", sales_path + f"/assignments/{sales_offer['id']}/connected")
+
+        l1_call, l1_path = self.start_call("provider/l1")
+        _, l2_path = self.start_call("provider/l2")
+        for call_path, code, department in (
+            (l1_path, "L1", "specialization_l1"), (l2_path, "L2", "specialization_l2"),
+        ):
+            handoff = self.handoff(call_path, category=code, department=None)
+            self.assertEqual((handoff["department"], handoff["state"], handoff["position"]), (department, "waiting", 1))
+            self.assertIsNone(self.voice("GET", call_path + "/assignment"))
+        self.assertEqual([entry["call_id"] for entry in self.operator("GET", "/queue")], [l1_call["id"]])
+        self.assertEqual(self.operator("GET", "/queue", token=CONNECTION_OPERATOR), [])
+
+        self.finish(sales_path)
+        self.operator("POST", "/profile/complete-wrap-up")
+        l1_offer = self.voice("GET", l1_path + "/assignment")
+        self.assertEqual(l1_offer["employee_id"], "operator_1")
+        self.request("PUT", path, payload={"specializations": ["SALES"]}, headers=manager)
+        self.assertIsNone(self.voice("GET", l1_path + "/assignment"))
+        self.accept(l1_offer, expected=409)
+
+        employee_path = "/api/v1/employees/operator_3/specializations"
+        self.operator("PUT", "/profile/settings", token=CONNECTION_OPERATOR, payload={"sound_enabled": False})
+        with closing(sqlite3.connect(self.database, timeout=5)) as db, db:
+            db.execute("UPDATE cc_workforce SET skills = ? WHERE employee_id = 'operator_3'", (json.dumps(["fiber"]),))
+        saved = self.request("PUT", employee_path, payload={"specializations": ["L2", "L2"]}, headers=manager)
+        self.assertEqual((saved["department"], saved["specializations"]), ("connection", ["L2"]))
+        profile = self.operator("GET", "/profile", token=CONNECTION_OPERATOR)
+        self.assertEqual(profile["skills"], ["fiber", "L2"])
+        settings = self.operator("GET", "/profile/settings", token=CONNECTION_OPERATOR)
+        self.assertFalse(settings["sound_enabled"])
+        l2_offer = self.voice("GET", l2_path + "/assignment")
+        self.assertEqual(l2_offer["employee_id"], "operator_3")
+        self.assertEqual(self.accept(l2_offer, token=CONNECTION_OPERATOR)["state"], "accepted")
+        self.request("PUT", employee_path, payload={"specializations": []}, headers=manager)
+        self.assertEqual(self.voice("GET", l2_path + "/assignment")["state"], "accepted")
+
     def test_transfer_to_department_and_employee_waits_for_voice_ack(self):
         call, path = self.start_call("provider/transfer")
         self.handoff(path)

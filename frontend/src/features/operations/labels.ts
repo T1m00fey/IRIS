@@ -1,6 +1,23 @@
-import type { Call, CallStatus, Department, EmployeeStatus, Priority, TicketStatus, Tone } from '../../types/operations'
+import type { Call, CallStatus, Department, EmployeeStatus, Priority, Specialization, TicketStatus, Tone } from '../../types/operations'
 
 export const departments: Record<Department, string> = { technical_support: 'Техподдержка', billing: 'Платежи', connection: 'Подключения' }
+export const specializationLabels = {
+  SALES: 'Продажи',
+  L1: 'Первая линия поддержки',
+  L2: 'Вторая линия поддержки',
+} satisfies Record<Specialization, string>
+
+export const specializationCodes = Object.keys(specializationLabels) as Specialization[]
+export const specializationDepartments = new Map(
+  specializationCodes.map(code => ['specialization_' + code.toLowerCase(), code]),
+)
+export const callDepartments: Record<string, string> = {
+  ...departments,
+  ...Object.fromEntries([...specializationDepartments].map(([department, code]) => [
+    department, code + ' · ' + specializationLabels[code],
+  ])),
+}
+
 export const callStatuses: Record<CallStatus, string> = { ringing: 'Входящий', active: 'Активный', completed: 'Завершён', abandoned: 'Пропущен', failed: 'Сбой' }
 export const callTones: Record<CallStatus, Tone> = { ringing: 'info', active: 'success', completed: 'neutral', abandoned: 'warning', failed: 'danger' }
 export const outcomes: Record<Call['outcome'], string> = { unknown: 'В работе', answered: 'Консультация', ticket_created: 'Создано обращение', unresolved: 'Не решено', no_confirmation: 'Без подтверждения' }

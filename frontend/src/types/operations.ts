@@ -17,7 +17,7 @@ export interface Call {
   status: CallStatus
   phase: 'ai_active' | 'waiting_for_operator' | 'operator_joining' | 'with_operator' | null
   outcome: 'unknown' | 'answered' | 'ticket_created' | 'unresolved' | 'no_confirmation'
-  department: Department | null
+  department: string | null
   caller_phone_masked: string | null
   started_at: string
   ended_at: string | null
@@ -92,6 +92,8 @@ export interface Dashboard {
   active_incidents: Incident[]
 }
 
+export type Specialization = 'SALES' | 'L1' | 'L2'
+
 export interface Employee {
   id: string
   full_name: string
@@ -99,4 +101,6 @@ export interface Employee {
   status: EmployeeStatus
   is_current: boolean
   updated_at: string
+  specializations: Specialization[] | null
+  on_shift: boolean
 }

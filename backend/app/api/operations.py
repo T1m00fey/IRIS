@@ -13,6 +13,8 @@ from starlette.concurrency import run_in_threadpool
 from app.auth import session_is_active
 from app.core import operations as core
 from app.core.contact_center import service
+from app.core.contact_center.models import WorkforceRecord
+from app.core.contact_center.schemas import SpecializationsUpdate
 from app.core.operations_models import CallRecord, EmployeeRecord, OperationEvent, TicketRecord
 from app.core.schemas import (
     CallDetail, CallList, CallMessage, CallOutcome, CallStatus, Dashboard, Department,
@@ -132,11 +134,23 @@ def update_employee(employee_id: str, change: EmployeeUpdate) -> Employee:
     try:
         with service.transaction() as db:
             service.set_presence(db, employee_id, change.status)
-            return core.employee_item(db.get(EmployeeRecord, employee_id))
+            return core.employee_item(db.get(EmployeeRecord, employee_id), db.get(WorkforceRecord, employee_id))
     except core.RecordNotFound as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except core.OperationConflict as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@router.put("/employees/{employee_id}/specializations", response_model=Employee, responses={
+    404: {"description": "Оператор не найден"},
+})
+def update_employee_specializations(employee_id: str, change: SpecializationsUpdate) -> Employee:
+    try:
+        with service.transaction() as db:
+            employee, profile = service.set_specializations(db, employee_id, change.specializations)
+            return core.employee_item(employee, profile)
+    except core.RecordNotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
 
 
 def latest_event_id() -> int:

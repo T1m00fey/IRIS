@@ -13,7 +13,7 @@ import { Button } from '../../components/ui/button'
 import { initials, formatMoney, serviceStatuses } from '../../features/crm/CrmElements'
 import type { CustomerDetail } from '../../features/crm/types'
 import { Transcript } from '../../features/operations/CallContext'
-import { callStatuses, departments, outcomes } from '../../features/operations/labels'
+import { callDepartments, callStatuses, outcomes } from '../../features/operations/labels'
 import { formatDate, formatDuration, formatNumber } from '../../lib/format'
 import type { Call } from '../../types/operations'
 import { useOperatorWorkspace, type OperatorCall, type OperatorWorkspace } from './data'
@@ -63,7 +63,7 @@ function CallBanner({ call, assignment, voiceAvailable, wrapUp, pending, error, 
   const connected = assignment?.state === 'connected'
   const path = 'assignments/' + encodeURIComponent(assignment?.id ?? '')
   const disabled = pending || !voiceAvailable
-  const department = call?.department ? departments[call.department] || call.department : 'Отдел уточняется'
+  const department = call?.department ? callDepartments[call.department] ?? call.department : 'Отдел уточняется'
   const status = offered ? 'Входящий звонок' : connecting ? 'Подключение к звонку' : connected ? 'Активный разговор'
     : wrapUp ? 'Постобработка' : call ? callStatuses[call.status] : 'Ожидание'
   const title = call ? callerName(call) : wrapUp ? 'Завершите работу со звонком' : 'Готовность к звонку'

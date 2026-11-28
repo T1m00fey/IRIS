@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.core import crm_models  # Registers CRM and authorization models with Base.
 from app.core.contact_center.models import DepartmentRecord
+from app.core.contact_center.schemas import SPECIALIZATION_DEPARTMENTS
+from app.core.schemas import Specialization
 from app.database import DATABASE_PATH, Base, enable_wal, engine
 
 
@@ -15,6 +17,13 @@ MVP_DEPARTMENTS = {
     "technical_support": "Техническая поддержка",
     "billing": "Платежи и расчёты",
     "connection": "Новые подключения",
+}
+
+
+SPECIALIZATION_QUEUES = {
+    SPECIALIZATION_DEPARTMENTS[Specialization.SALES]: "SALES · Продажи",
+    SPECIALIZATION_DEPARTMENTS[Specialization.L1]: "L1 · Первая линия поддержки",
+    SPECIALIZATION_DEPARTMENTS[Specialization.L2]: "L2 · Вторая линия поддержки",
 }
 
 
@@ -54,9 +63,10 @@ def require_schema() -> None:
         )
 
 
-def add_default_departments(db: Session) -> None:
+def add_default_departments(db: Session, *, specializations_only: bool = False) -> None:
+    departments = SPECIALIZATION_QUEUES if specializations_only else {**MVP_DEPARTMENTS, **SPECIALIZATION_QUEUES}
     db.execute(insert(DepartmentRecord).values([
-        {"code": code, "name": name} for code, name in MVP_DEPARTMENTS.items()
+        {"code": code, "name": name} for code, name in departments.items()
     ]).on_conflict_do_nothing(index_elements=[DepartmentRecord.code]))
 
 

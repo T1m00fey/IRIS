@@ -3,7 +3,13 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-from app.core.schemas import EmployeeStatus, TicketPriority
+from app.core.schemas import EmployeeStatus, Specialization, TicketPriority
+
+
+SPECIALIZATION_DEPARTMENTS = {
+    code: f"specialization_{code.value.lower()}" for code in Specialization
+}
+DEPARTMENT_SPECIALIZATIONS = {department: code for code, department in SPECIALIZATION_DEPARTMENTS.items()}
 
 
 Identifier = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
@@ -16,9 +22,17 @@ CommandKind = Literal["connect", "hold", "resume", "transfer", "end", "cancel_co
 class QueueRequest(BaseModel):
     event_id: Identifier
     department: Code | None = None
-    category: Code | None = None
+    category: Code | None = Field(
+        default=None, description="Категория Voice AI (SALES, L1, L2 или настроенный код маршрутизации)",
+    )
     priority: TicketPriority = TicketPriority.NORMAL
     required_skills: list[Code] = Field(default_factory=list, max_length=32)
+
+
+class SpecializationsUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    specializations: set[Specialization]
 
 
 class QueueEntry(BaseModel):

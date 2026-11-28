@@ -10,7 +10,7 @@ import { CustomerNotes } from '../features/crm/CustomerNotes'
 import { CustomerOverview } from '../features/crm/CustomerOverview'
 import { useCustomerHistory } from '../features/crm/useCustomerHistory'
 import type { Account, CustomerDetail } from '../features/crm/types'
-import { callStatuses, callTones, departments, ticketStatuses, ticketTones } from '../features/operations/labels'
+import { callDepartments, callStatuses, callTones, departments, ticketStatuses, ticketTones } from '../features/operations/labels'
 import { formatDate, formatDuration } from '../lib/format'
 import type { Call, Ticket } from '../types/operations'
 import '../features/crm/crm.css'
@@ -236,7 +236,7 @@ function HistoryRow({ item }: { item: Call | Ticket }) {
     <tr>
       <td><Link className="crm-link" to={'/calls/' + encodeURIComponent(item.id)}>{item.summary || 'Звонок ' + item.id}</Link>
         <span className="crm-secondary muted">{item.caller_phone_masked ?? item.id}</span></td>
-      <td>{formatDate(item.started_at)}</td><td>{item.department ? departments[item.department] : '—'}</td>
+      <td>{formatDate(item.started_at)}</td><td>{item.department ? callDepartments[item.department] ?? item.department : '—'}</td>
       <td><StatusBadge tone={callTones[item.status]}>{callStatuses[item.status]}</StatusBadge></td>
       <td className="crm-number">{formatDuration(item.duration_seconds)}</td>
     </tr>
