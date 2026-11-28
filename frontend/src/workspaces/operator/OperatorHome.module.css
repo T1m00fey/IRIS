@@ -1,0 +1,313 @@
+.home {
+  container-type: inline-size;
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  padding: 13px var(--card-padding);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 13px;
+}
+
+.profile time,
+.profile dl,
+.profile dl > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 9px;
+  margin: 0;
+}
+
+.profile dl {
+  gap: 8px 24px;
+}
+
+.profile time {
+  font-weight: 620;
+}
+
+.profile svg {
+  color: var(--primary);
+}
+
+.profile dt,
+.details dt,
+.metricChange {
+  color: var(--muted-foreground);
+}
+
+.profile dd,
+.details dd {
+  margin: 0;
+  font-weight: 620;
+  overflow-wrap: anywhere;
+}
+
+.metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.metrics :global(.metric-caption) {
+  min-block-size: 2lh;
+  overflow-wrap: break-word;
+}
+
+.metricChange {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2.1fr) minmax(260px, 1fr);
+  align-items: start;
+  gap: var(--layout-gap);
+}
+
+.tablePanel h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tablePanel h2 svg {
+  flex: none;
+  color: var(--primary);
+}
+
+.tableScroll {
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.tickets tbody th {
+  min-width: 130px;
+}
+
+.tickets :is(th, td) {
+  padding-inline: 10px;
+}
+
+.tickets :is(th, td):first-child {
+  padding-left: var(--card-padding);
+}
+
+.tickets :is(th, td):last-child {
+  padding-right: var(--card-padding);
+}
+
+.tickets th a {
+  display: inline-flex;
+  gap: 4px;
+  align-items: baseline;
+  overflow-wrap: anywhere;
+}
+
+.tickets th a svg {
+  flex: none;
+  align-self: start;
+  margin-top: 3px;
+}
+
+.tickets th small,
+.tickets time,
+.callTime {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tickets th small {
+  display: block;
+  margin-top: 3px;
+  font-weight: 450;
+}
+
+.mobileLabel {
+  display: none;
+}
+
+.highPriority {
+  color: var(--danger-text);
+  font-weight: 620;
+}
+
+.details {
+  display: grid;
+  margin: 0;
+  font-size: 13px;
+}
+
+.details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  min-height: 40px;
+  padding-block: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.details dd {
+  text-align: right;
+}
+
+.details .queueCount {
+  font-size: 22px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.notifications li {
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.notifications li > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--warning-text);
+}
+
+.notifications li strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--warning-text);
+  font-size: 12px;
+}
+
+.callList {
+  padding-inline: var(--card-padding);
+}
+
+.callTime {
+  text-align: right;
+}
+
+.incidents li {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.incidents li:first-child,
+.notifications li:first-child {
+  padding-top: 0;
+}
+
+.incidents li:last-child,
+.notifications li:last-child {
+  padding-bottom: 0;
+}
+
+.empty,
+.feedback {
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.empty svg {
+  flex: none;
+  color: var(--primary);
+}
+
+.tablePanel > .empty,
+.tableFooter {
+  padding: 15px var(--card-padding);
+}
+
+.tableFooter {
+  border-top: 1px solid var(--border);
+}
+
+.feedback:global(.panel) {
+  padding: 12px var(--card-padding);
+}
+
+.feedback {
+  flex-wrap: wrap;
+}
+
+.feedback :global(.button) {
+  flex: none;
+}
+
+@container (max-width: 860px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container (730px < width <= 860px) {
+  .metrics > :global(.v3-metric) {
+    flex-direction: column;
+  }
+}
+
+@container (max-width: 730px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 560px) {
+  .tickets,
+  .tickets tbody {
+    display: block;
+  }
+
+  .tickets thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .tickets tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 14px;
+    height: auto;
+    padding: 12px var(--card-padding);
+  }
+
+  .tickets tbody tr + tr {
+    border-top: 1px solid var(--border);
+  }
+
+  .tickets tbody :is(th, td):nth-child(n) {
+    padding: 0;
+    border: 0;
+  }
+
+  .tickets tbody th {
+    grid-column: 1 / -1;
+  }
+
+  .mobileLabel {
+    display: block;
+    color: var(--muted-foreground);
+    font-size: 12px;
+  }
+}
+
+@container (max-width: 380px) {
+  .metrics > :global(.v3-metric) {
+    flex-direction: column;
+    padding: 12px;
+  }
+
+  .profile dl {
+    gap: 8px 16px;
+  }
+}

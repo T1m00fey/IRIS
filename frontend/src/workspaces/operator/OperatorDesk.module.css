@@ -1,0 +1,509 @@
+.frame {
+  container-type: inline-size;
+  --desk-gap: clamp(10px, 1.2vw, 16px);
+  --desk-padding: clamp(12px, 1.2vw, 18px);
+}
+
+.frame .grid {
+  grid-template-columns: minmax(0, 26.5fr) minmax(0, 40.5fr) minmax(0, 31fr);
+  grid-template-areas: 'list banner banner' 'list context customer';
+  grid-template-rows: auto 1fr;
+  gap: var(--desk-gap);
+}
+
+.callsPanel,
+.banner,
+.context,
+.customer {
+  min-width: 0;
+}
+
+.frame .callsPanel {
+  min-height: clamp(510px, 74dvh, 790px);
+  padding: var(--desk-padding);
+}
+
+.frame .grid[data-idle='true'] .callsPanel {
+  min-height: 0;
+}
+
+.callsPanel h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 670;
+  line-height: 1.35;
+  letter-spacing: -.015em;
+}
+
+.count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.listTabs button {
+  min-width: 0;
+  padding-inline: 5px;
+  white-space: nowrap;
+}
+
+.callsPanel :global(.desk-search) input {
+  border-color: var(--border);
+  font-size: 13px;
+}
+
+.calls {
+  max-height: min(64dvh, 660px);
+  margin-inline: calc(-1 * min(4px, var(--desk-padding)));
+  padding: 4px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.frame .calls button {
+  align-items: center;
+  gap: 8px;
+  padding: 9px 7px;
+}
+
+.calls button > :global(.avatar) {
+  width: 34px;
+  height: 34px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.calls button[aria-pressed='true'] > :global(.avatar) {
+  background: var(--surface);
+  color: var(--primary-hover);
+}
+
+.calls button strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 670;
+  line-height: 1.35;
+}
+
+.calls .callSnippet {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.callTime {
+  flex: none;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.calls button[aria-pressed='true'] .callTime {
+  color: var(--primary-hover);
+  font-weight: 620;
+}
+
+.listEmpty {
+  margin-top: 12px;
+}
+
+.banner {
+  grid-area: banner;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  min-height: 116px;
+  padding: var(--desk-padding);
+}
+
+.bannerMain {
+  display: flex;
+  flex: 1 1 215px;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.banner .phoneIcon {
+  width: 49px;
+  height: 49px;
+  border-radius: 50%;
+}
+
+.bannerCopy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.bannerCopy > span {
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.bannerCopy h2 {
+  margin: 3px 0;
+  font-size: clamp(21px, 1.9vw, 28px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -.025em;
+}
+
+.bannerCopy p,
+.voiceStatus {
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.bannerTools {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.elapsed,
+.voiceStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.elapsed {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.elapsed svg,
+.voiceStatus svg {
+  flex: none;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+  min-width: 0;
+}
+
+.controls :global(.button),
+.controls select {
+  min-height: 38px;
+  font-size: 13px;
+}
+
+.endCall {
+  color: var(--danger-text);
+}
+
+.bannerError {
+  flex-basis: 100%;
+}
+
+.context {
+  grid-area: context;
+  align-self: stretch;
+}
+
+.contextTabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0 var(--desk-padding);
+}
+
+.contextTabs button {
+  justify-content: center;
+  min-width: 0;
+  padding: 8px 4px;
+  white-space: nowrap;
+}
+
+.contextTabs svg {
+  flex: none;
+}
+
+.contextBody {
+  display: grid;
+  gap: 12px;
+  padding: var(--desk-padding);
+  overflow-wrap: anywhere;
+}
+
+.summary {
+  padding: 12px;
+  border-radius: var(--control-radius);
+  background: var(--primary-light);
+}
+
+.summary h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 5px;
+  color: var(--primary-hover);
+  font-size: 16px;
+  font-weight: 690;
+}
+
+.summary p {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.summary small {
+  display: block;
+  margin-top: 5px;
+  font-size: 13px;
+}
+
+.summary summary {
+  cursor: pointer;
+}
+
+.summary details[open] summary {
+  margin-bottom: 6px;
+}
+
+.facts h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 670;
+}
+
+.facts ul,
+.extra {
+  display: grid;
+  gap: 7px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.facts li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.facts li svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--primary);
+}
+
+.extra > div {
+  padding-top: 7px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.extra dt {
+  font-weight: 650;
+}
+
+.extra dd {
+  margin: 2px 0 0;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.result {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.footerActions {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.footer :global(.button),
+.footerActions :global(.disclosure) {
+  min-height: 36px;
+  box-shadow: none;
+  font-size: 12px;
+}
+
+.footerActions :global(.disclosure) {
+  flex: 0 1 auto;
+  padding: 8px;
+  border-radius: var(--control-radius);
+}
+
+.footerActions :global(.button) {
+  gap: 6px;
+  padding-inline: 8px;
+}
+
+.footerActions :global(.disclosure[open]) {
+  flex-basis: 100%;
+}
+
+.footerActions summary {
+  font-size: 12px;
+}
+
+.notes > :global(.button) {
+  justify-self: start;
+}
+
+.customer {
+  grid-area: customer;
+  align-self: stretch;
+  padding: var(--desk-padding);
+}
+
+.identity {
+  margin-bottom: 10px;
+}
+
+.accountSelect {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.account {
+  display: grid;
+  margin: 0;
+}
+
+.account > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 6px 10px;
+  padding-block: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.account dt {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted-foreground);
+}
+
+.account dt svg {
+  flex: none;
+}
+
+.account dd {
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.positive {
+  color: var(--primary-hover);
+  font-variant-numeric: tabular-nums;
+}
+
+.incident {
+  padding: 10px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.incident p {
+  margin: 2px 0 0;
+  font-size: 12px;
+}
+
+@container (max-width: 900px) {
+  .frame .callsPanel {
+    min-height: clamp(465px, 74dvh, 680px);
+  }
+
+  .frame .calls button {
+    gap: 6px;
+    padding-inline: 5px;
+  }
+
+  .calls button > :global(.avatar) {
+    width: 29px;
+    height: 29px;
+  }
+
+  .callsPanel :global(.desk-search) input {
+    padding-left: 31px;
+    padding-right: 6px;
+    font-size: 12px;
+  }
+
+  .account > div {
+    gap: 6px 8px;
+    padding-block: 7px;
+  }
+
+  .listTabs button,
+  .account > div {
+    font-size: 12px;
+  }
+}
+
+@container (max-width: 735px) {
+  .frame .grid {
+    grid-template-columns: minmax(155px, 1fr) minmax(0, 2fr);
+    grid-template-areas: 'list banner' 'list context' 'list customer';
+    grid-template-rows: auto auto 1fr;
+  }
+}
+
+@container (max-width: 520px) {
+  .frame .grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'banner' 'list' 'context' 'customer';
+    grid-template-rows: auto;
+  }
+
+  .frame .callsPanel {
+    min-height: 0;
+  }
+
+  .calls {
+    max-height: 240px;
+  }
+
+  .bannerTools {
+    align-items: flex-start;
+  }
+
+  .controls {
+    justify-content: flex-start;
+  }
+}

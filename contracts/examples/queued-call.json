@@ -1,0 +1,33 @@
+{
+  "id": "call_1042",
+  "status": "active",
+  "phase": "waiting_for_operator",
+  "outcome": "ticket_created",
+  "department": "technical_support",
+  "caller_phone_masked": "+7 *** *** ** 42",
+  "started_at": "2026-11-27T14:30:00+03:00",
+  "connected_at": "2026-11-27T14:30:03+03:00",
+  "ended_at": null,
+  "can_join": true,
+  "handoff": {
+    "ticket_id": "T-1042",
+    "customer_request": "Восстановить интернет после оплаты.",
+    "summary": "Интернет пропал перед видеозвонком. Платёж зачислен, по адресу открыт инцидент.",
+    "customer_report": "По Wi-Fi не работают ноутбук и телефон.",
+    "verified_facts": [
+      {
+        "text": "Платёж зачислен. Баланс +450 ₽.",
+        "source": "billing",
+        "checked_at": "2026-11-27T14:30:44+03:00"
+      },
+      {
+        "text": "По адресу договора открыт учебный инцидент NET-102.",
+        "source": "incident_registry",
+        "checked_at": "2026-11-27T14:31:00+03:00"
+      }
+    ],
+    "open_question": "Работает ли интернет при подключении ноутбука кабелем?",
+    "secondary_questions": [],
+    "confirmed_at": "2026-11-27T14:31:40+03:00"
+  }
+}

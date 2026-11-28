@@ -16,8 +16,60 @@ IRIS проверяет платёж и видит открытый инциде
 | --- | --- |
 | [voice](voice/) | Телефония, голосовой диалог и передача аудио оператору |
 | [backend](backend/) | Данные абонента, состояние звонка, очередь обращений и API |
-| [frontend](frontend/) | Кабинет оператора со списком звонков, карточкой и подключением к разговору |
+| [frontend](frontend/) | Кабинеты оператора и руководителя, CRM, обращения, очередь и аналитика |
 
-Проект на этапе старта. В демо планируем использовать учебные данные договоров, платежей и инцидентов.
+CRM и Contact Center Core работают в одном FastAPI и используют общую SQLite. Демо заполняет её синтетическими записями. Медиаподключение готовится в модуле Voice. [Контракт Voice AI](docs/VOICE_CORE_INTEGRATION.md)
 
-[Архитектура IRIS](ARCHITECTURE.md) · [Маршруты HTTP API](ARCHITECTURE.md#http-api)
+## Запуск демо
+
+Выполните команды из корня приложения. Требуются Python 3.11+ и Node.js 20.19 или 22.12 и новее.
+
+```powershell
+python -m venv .venv
+& ./.venv/Scripts/python.exe -m pip install -r backend/requirements.txt
+$env:IRIS_DEMO = '1'
+$env:DATABASE_PATH = 'backend/iris-demo.sqlite3'
+& ./.venv/Scripts/python.exe -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
+```
+
+Во втором терминале запустите собранный интерфейс.
+
+```powershell
+cd frontend
+npm ci
+npm run build
+npm run preview -- --host 127.0.0.1 --port 5173
+```
+
+Для входа в учебную базу используйте `manager` / `iris-manager` или `operator` / `iris-operator`. Вход открывает кабинет соответствующей роли. Повторный запуск сохраняет существующие учебные записи. [Вход](http://127.0.0.1:5173/login) · [Swagger](http://127.0.0.1:8000/api/docs)
+
+FastAPI включает Contact Center Core по умолчанию. Без `IRIS_VOICE_TOKEN` доступны CRM, кабинеты, история звонков и снимок очереди. FastAPI создаёт схему новой SQLite при первом запуске. Существующую базу обновляют отдельной командой после проверки на копии. [Миграция SQLite](docs/DATA_MODEL.md#миграция-sqlite)
+
+На Linux и macOS используйте `.venv/bin/python` и задавайте переменные через `export`.
+
+## Демо-сценарий
+
+1. Войдите как руководитель и найдите в CRM лицевой счёт `100042`. Откройте Анну Петрову, проверьте зачисленный платёж и инцидент `NET-102`.
+2. Перейдите в историю звонков через «Контакт-центр» и откройте `call_1042`. В карточке есть сводка, реплики, проверки CRM и обращение `T-1042`.
+3. Откройте `T-1042` в панели обращений, перенаправьте его и начните обработку. Изменения сохраняются в SQLite.
+4. Войдите как оператор. В его рабочем месте доступны звонки, к которым сотрудник допущен Contact Center, и личные показатели. Учебный запуск без Voice показывает состояние ожидания.
+
+Подключение механизма назначений и оборудования описано отдельно. [Voice и Contact Center](docs/VOICE_CORE_INTEGRATION.md) · [Права доступа](docs/ROLE_PERMISSIONS.md)
+
+## Проверки
+
+```powershell
+$env:PYTHONPATH = 'backend'
+& ./.venv/Scripts/python.exe -m unittest discover -s backend/tests -v
+cd frontend
+npm run build
+npm exec playwright install chromium
+npm run test:e2e
+```
+
+Playwright обращается к уже запущенному демо. Полный прогон с записью и имитацией звонков использует отдельную свежую учебную базу. [Подробнее о проверках](frontend/README.md)
+
+- [Архитектура](docs/ARCHITECTURE.md)
+- [OpenAPI](contracts/openapi.json)
+- [Статус V3](docs/PROJECT_STATUS.md)
+- [Contact Center Core](docs/CONTACT_CENTER.md)

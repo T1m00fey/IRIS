@@ -1,0 +1,38 @@
+.ticket-workbench { display: grid; gap: 16px; min-width: 0; align-items: start; }
+.ticket-workbench-selected { grid-template-columns: minmax(0, 1.65fr) minmax(310px, 1fr); }
+.ticket-list { container-type: inline-size; }
+.ticket-filters { padding: 16px var(--card-padding); border-bottom: 1px solid var(--border); }
+.ticket-filters .filter-label { flex: 1 1 140px; }
+.ticket-filters > button { align-self: end; }
+.ticket-list .data-table { min-width: 775px; }
+.ticket-list .ticket-title { min-width: 180px; }
+.ticket-list .data-table .ticket-list-active { background: var(--primary-light, #e8f5ec); }
+.ticket-list .table-scroll:focus-visible { outline-offset: -2px; }
+.ticket-list .page-state { border: 0; }
+.ticket-drawer { min-width: 0; overflow-wrap: anywhere; }
+.ticket-drawer-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: var(--card-padding); border-bottom: 1px solid var(--border); }
+.ticket-drawer-header small { font-size: 12px; }
+.ticket-drawer-header h2 { margin: 3px 0 0; font-size: clamp(18px, 1.5vw, 21px); font-weight: 630; }
+.ticket-drawer-header a { flex: none; }
+.ticket-drawer-content { display: grid; gap: 14px; padding: var(--card-padding); }
+.ticket-block { padding: 14px; border: 1px solid var(--border); border-radius: var(--control-radius); background: var(--surface); }
+.ticket-block h3 { margin: 0 0 8px; font-size: 14px; font-weight: 650; }
+.ticket-block p { font-size: 13px; }
+.ticket-ai { background: var(--primary-light, #e8f5ec); border-color: var(--primary-light, #e8f5ec); }
+.ticket-ai h3 { display: flex; align-items: center; gap: 6px; color: var(--primary); }
+.ticket-ai p + p, .ticket-ai ul, .ticket-ai details { margin-top: 8px; }
+.ticket-ai ul { margin-bottom: 0; padding-inline-start: 16px; font-size: 12px; list-style: disc; }
+.ticket-context-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ticket-queue-detail { display: grid; gap: 10px; justify-items: start; }
+.ticket-queue-detail .ticket-drawer { width: min(100%, 720px); }
+
+@container (max-width: 720px) {
+  .ticket-list .data-table { min-width: 440px; }
+  .ticket-list .ticket-list-extra { display: none; }
+  .ticket-list .data-table :is(th, td) { padding-inline: 6px; }
+  .ticket-list .data-table th { white-space: normal; }
+}
+@media (max-width: 800px) {
+  .ticket-workbench-selected { grid-template-columns: minmax(0, 1fr); }
+  .ticket-workbench-selected .ticket-list { display: none; }
+}

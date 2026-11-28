@@ -1,0 +1,172 @@
+.iris-settings {
+  display: grid;
+  gap: var(--layout-gap);
+  min-width: 0;
+}
+
+.iris-settings-nav {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 0 0 7px;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.iris-settings-nav button {
+  display: inline-flex;
+  position: relative;
+  flex: 1 0 auto;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 8px 12px;
+  border-radius: var(--control-radius);
+  font-weight: 570;
+  color: var(--muted-foreground);
+}
+
+.iris-settings-nav button:hover { background: var(--muted); color: var(--foreground); }
+.iris-settings-nav button[aria-pressed='true'] { background: var(--primary-light); color: var(--primary-hover); font-weight: 680; }
+.iris-settings-nav button[aria-pressed='true']::after {
+  position: absolute;
+  inset: auto 10px 0;
+  height: 2px;
+  background: var(--primary);
+  border-radius: 2px;
+  content: '';
+}
+
+.iris-settings-overview, .iris-settings-single, .iris-settings-top, .iris-settings-bottom {
+  display: grid;
+  gap: var(--layout-gap);
+  min-width: 0;
+}
+
+.iris-settings-top { grid-template-columns: minmax(0, .88fr) minmax(0, 1.12fr); }
+.iris-settings-bottom { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.iris-settings-single { max-width: 850px; }
+
+.iris-settings-card { padding: var(--card-padding); }
+.iris-settings-bottom .iris-settings-row { padding-block: 6px; }
+.iris-settings-card-heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.iris-settings-card-heading > div { min-width: 0; flex: 1; }
+.iris-settings-card-heading h2 { margin: 0; font-size: clamp(18px, 1.35vw, 22px); font-weight: 700; letter-spacing: -.025em; line-height: 1.2; overflow-wrap: anywhere; }
+.iris-settings-card-heading p { color: var(--muted-foreground); margin: 4px 0 0; font-size: 13px; line-height: 1.35; }
+.iris-settings-card-heading .badge { align-self: center; }
+.iris-settings-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: 50%;
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.iris-settings-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; min-height: 46px; border-bottom: 1px solid var(--border); }
+.iris-settings-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.iris-settings-row-copy { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.iris-settings-row-copy strong, .iris-settings-sound strong { display: block; font-size: 14px; font-weight: 630; }
+.iris-settings-row-copy small, .iris-settings-sound small { display: block; color: var(--muted-foreground); font-size: 12px; line-height: 1.4; margin-top: 2px; }
+.iris-settings-row svg { flex: none; }
+.iris-settings-row-icon { color: var(--muted-foreground); }
+.iris-settings-value { max-width: 48%; text-align: right; color: var(--muted-foreground); overflow-wrap: anywhere; }
+.iris-settings-select { min-width: 0; max-width: 49%; }
+
+.iris-settings-switch {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 44px;
+  align-items: center;
+  height: 42px;
+  padding: 0 3px;
+  border-radius: var(--control-radius);
+}
+
+.iris-settings-switch::before {
+  position: absolute;
+  inset: 9px 0;
+  border-radius: 99px;
+  background: var(--muted-foreground);
+  content: '';
+}
+
+.iris-settings-switch span {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface);
+  transition: transform 150ms ease;
+}
+
+.iris-settings-switch[aria-checked='true']::before { background: var(--primary); }
+.iris-settings-switch[aria-checked='true'] span { transform: translateX(20px); }
+.iris-settings-unavailable { color: var(--muted-foreground); }
+
+.iris-settings-theme {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  width: min(150px, 100%);
+  padding: 12px;
+  border: 1px solid var(--primary);
+  border-radius: var(--control-radius);
+  color: var(--primary-hover);
+  background: var(--primary-light);
+  margin-bottom: 8px;
+}
+
+.iris-settings-theme span { font-size: 12px; }
+.iris-settings-permissions { margin: 0; padding: 0; list-style: none; }
+.iris-settings-permissions li { display: flex; align-items: center; gap: 9px; border-bottom: 1px solid var(--border); padding: 10px 0; line-height: 1.4; }
+.iris-settings-permissions li:last-child { border-bottom: 0; padding-bottom: 0; }
+.iris-settings-permissions svg { flex: none; color: var(--primary); }
+.iris-settings-permissions .iris-settings-unavailable svg { color: inherit; }
+
+.iris-settings-meter { height: 25px; display: flex; align-items: center; gap: 3px; }
+.iris-settings-meter i { height: 48%; width: 3px; border-radius: 3px; background: var(--border); }
+.iris-settings-meter i:nth-child(n+5) { height: 65%; }
+.iris-settings-meter i:nth-child(n+9) { height: 90%; }
+.iris-settings-meter i[data-active='true'] { background: var(--primary); }
+.iris-settings-audio-play.button { min-width: var(--control-height); padding-inline: 0; color: var(--primary-hover); background: var(--primary-light); }
+.iris-settings-sound {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: var(--control-radius);
+  background: var(--primary-light);
+}
+.iris-settings-sound > svg { color: var(--primary); flex: none; }
+.iris-settings-sound > div { flex: 1 1 130px; }
+.iris-settings-sound .button { margin-left: auto; }
+.iris-settings-note { margin: 9px 0 0; font-size: 13px; }
+.iris-settings-note:not(.alert) { color: var(--muted-foreground); }
+.iris-settings-feedback { margin: 0; }
+.iris-settings-account { display: grid; gap: 10px 20px; margin: 0 0 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow-wrap: anywhere; }
+.iris-settings-account dt { font-size: 12px; color: var(--muted-foreground); }
+.iris-settings-account dd { margin: 2px 0 0; font-weight: 620; }
+.iris-settings-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; }
+
+@media (max-width: 1120px) {
+  .iris-settings-bottom { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 900px) {
+  .iris-settings-top { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 620px) {
+  .iris-settings-bottom { grid-template-columns: minmax(0, 1fr); }
+  .iris-settings-nav button { justify-content: flex-start; }
+  .iris-settings-card-heading { flex-wrap: wrap; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iris-settings-switch span { transition: none; }
+}

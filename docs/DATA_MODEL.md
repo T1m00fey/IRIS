@@ -1,0 +1,51 @@
+# Модель данных
+
+FastAPI использует одну SQLite по `DATABASE_PATH` для CRM, очередей, назначений и авторизации. Подключения проверяют внешние ключи. Миграция включает WAL для файла. FastAPI создаёт схему для нового файла и проверяет схему существующего файла перед запуском диспетчера. [Подключение SQLite](../backend/app/database.py)
+
+| Группа | Таблицы и связи |
+| --- | --- |
+| CRM | `customers` → `accounts` → `payments`. Каждый счёт связан с `addresses` и `tariffs`. Инциденты в `incidents` привязаны к адресу. |
+| Звонки и обращения | `calls` и `tickets` могут ссылаться на клиента и счёт. Звонок хранит реплики в `call_messages`. `call_message_sources` связывает внешний идентификатор реплики с записью. `handoff_confirmations` связывает подтверждение абонента и созданное обращение. `operation_events` хранит события для карточек и SSE, включая рабочие заметки оператора. |
+| Оргструктура | `employees` хранит сотрудника, отдел и состояние. `cc_workforce` добавляет навыки, компанию и признак текущей смены. `cc_departments` задаёт направления, `cc_routing_rules` связывает категорию вызова с отделом и навыками. |
+| Живая очередь | `cc_live_queue` хранит одну запись на звонок. `cc_assignments` хранит попытки назначения и время принятия, подключения и завершения. Частичные уникальные индексы ограничивают активные назначения одним на оператора и одним на звонок. |
+| Voice | `cc_voice_receipts` хранит проверку повторов событий. `cc_voice_commands` хранит команды, подтверждения и отмены. |
+| Авторизация | `auth_users` хранит роль, хеш пароля и необязательную связь с сотрудником. `auth_sessions` хранит хеш идентификатора сессии и срок действия. `auth_preferences` хранит личные настройки. |
+
+Используемые коды отделов `technical_support`, `billing` и `connection` сохранены для совместимости. Роль браузерного доступа хранится отдельно от отдела и навыков. Модель кабинета рассчитана на одну компанию. Поле компании в учётной записи и профиле сотрудника не задаёт сквозную изоляцию CRM или корпоративной аналитики. [Роли и разрешения](ROLE_PERMISSIONS.md)
+Заметки CRM хранятся в crm_customer_notes. Запись связана с клиентом и пользователем, содержит текст, имя автора на момент записи и время создания в UTC.
+
+## Миграция SQLite
+
+1. Сделайте согласованную копию через SQLite Backup API. Для базы в WAL используйте API резервного копирования, который включает зафиксированные транзакции из WAL. Подставьте абсолютные пути к исходной базе и новому файлу резервной копии.
+
+   ```powershell
+   $env:IRIS_BACKUP_SOURCE = 'C:/path/to/iris.sqlite3'
+   $env:IRIS_BACKUP_DESTINATION = 'C:/path/to/iris-backup.sqlite3'
+   @'
+   from contextlib import closing
+   from pathlib import Path
+   import os
+   import sqlite3
+
+   source = Path(os.environ['IRIS_BACKUP_SOURCE']).resolve(strict=True)
+   destination = Path(os.environ['IRIS_BACKUP_DESTINATION']).resolve()
+   destination.touch(exist_ok=False)
+   with closing(sqlite3.connect(source.as_uri() + '?mode=ro', uri=True)) as db:
+       with closing(sqlite3.connect(destination)) as backup:
+           db.backup(backup)
+           assert backup.execute('PRAGMA integrity_check').fetchall() == [('ok',)]
+   '@ | python -
+   ```
+
+2. Создайте отдельный файл из резервной копии и примените миграцию к нему. Выполните команды из корня приложения после установки зависимостей.
+
+   ```powershell
+   Copy-Item -LiteralPath $env:IRIS_BACKUP_DESTINATION -Destination 'C:/path/to/iris-migration-test.sqlite3'
+   $env:DATABASE_PATH = 'C:/path/to/iris-migration-test.sqlite3'
+   $env:PYTHONPATH = 'backend'
+   & ./.venv/Scripts/python.exe -m app.core.contact_center.initialize
+   ```
+
+3. Повторите миграцию на той же копии. Сравните исходные строки по таблицам, проверьте `PRAGMA integrity_check` и `PRAGMA foreign_key_check` и запустите FastAPI с этой копией. Миграция в одной транзакции добавляет отсутствующие таблицы, индексы, известные колонки старой схемы CCC и стандартные отделы. Существующие записи отделов сохраняются. [Код миграции](../backend/app/core/contact_center/initialize.py)
+
+4. После согласования окна миграции остановите запись в рабочую SQLite, создайте свежую резервную копию, выполните ту же команду с согласованным `DATABASE_PATH` и повторите проверки. Для проверки существующих данных держите `IRIS_DEMO` выключенным.

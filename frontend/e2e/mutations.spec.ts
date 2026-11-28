@@ -1,0 +1,60 @@
+import { expect, test, type Page } from '@playwright/test'
+
+test.skip(process.env.IRIS_E2E_WRITE !== '1', 'Use a fresh demo SQLite database for mutations')
+
+async function login(page: Page, role: 'manager' | 'operator') {
+  await page.goto('/login')
+  await page.getByLabel('Имя пользователя').fill(role)
+  await page.getByLabel('Пароль').fill('iris-' + role)
+  await page.getByRole('button', { name: 'Войти' }).click()
+  await page.waitForURL('**/' + role)
+}
+
+test('reviews an AI summary and dispatches a ticket from queue to closed', async ({ page }) => {
+  await login(page, 'manager')
+  await page.goto('/calls/call_1042')
+  await page.getByRole('button', { name: 'Подтвердить итоговую сводку' }).click()
+  await expect(page.getByText(/Подтверждено оператором/)).toBeVisible()
+  await page.goto('/tickets/T-1043')
+  const drawer = page.getByRole('complementary', { name: 'Проверить отклонённый платёж' })
+  await drawer.getByRole('combobox', { name: 'Новый отдел' }).selectOption('technical_support')
+  await drawer.getByRole('button', { name: 'Перенаправить' }).click()
+  await expect(drawer.getByText('Обращение перенаправлено')).toBeVisible()
+  await expect(drawer.getByText(/Техподдержка ·/)).toBeVisible()
+  await drawer.getByRole('button', { name: 'Начать обработку' }).click()
+  await expect(drawer.getByText('Обращение принято в работу')).toBeVisible()
+  await drawer.getByRole('button', { name: 'Закрыть обращение' }).click()
+  await expect(drawer.getByRole('status').getByText('Обращение закрыто')).toBeVisible()
+  await page.reload()
+  await expect(drawer.getByText('Закрыто', { exact: true })).toBeVisible()
+})
+
+test('persists employee pause in the workspace', async ({ page }) => {
+  await login(page, 'operator')
+  await page.goto('/workspace')
+  const status = page.getByRole('combobox', { name: 'Рабочий статус' })
+  await status.selectOption('paused')
+  await expect(status).toHaveValue('paused')
+  await page.reload()
+  await expect(status).toHaveValue('paused')
+  await status.selectOption('available')
+  await expect(status).toHaveValue('available')
+})
+
+test('manager saves a customer note and sees it after reload', async ({ page }) => {
+  await login(page, 'manager')
+  await page.goto('/customers/customer_100042')
+  await page.getByRole('link', { name: 'Заметки', exact: true }).click()
+  const notes = page.getByRole('region', { name: 'Заметки о клиенте' })
+  const field = notes.getByRole('textbox', { name: 'Новая заметка' })
+  const save = notes.getByRole('button', { name: 'Сохранить заметку' })
+  const text = 'Уточнить доступность услуги · ' + Date.now()
+  await expect(save).toBeDisabled()
+  await field.fill(text)
+  await save.click()
+  await expect(notes.getByText('Заметка сохранена')).toBeVisible()
+  await expect(notes.getByText(text, { exact: true })).toBeVisible()
+  await expect(field).toHaveValue('')
+  await page.reload()
+  await expect(notes.getByText(text, { exact: true })).toBeVisible()
+})
