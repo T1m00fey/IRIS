@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, matchPath, NavLink, Outlet, useLocation } from 'react-router'
-import { BarChart3, Bell, ChevronDown, CircleHelp, Clock3, Headset, House, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Phone, Settings, Ticket, UserRound, Users, UsersRound, X } from 'lucide-react'
+import { BarChart3, Bell, BookOpen, ChevronDown, CircleHelp, Clock3, Headset, House, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Phone, Settings, Ticket, UserRound, Users, UsersRound, X } from 'lucide-react'
 import { PageHeading, PageHeadingTarget } from '../components/PageHeading'
 import { Button } from '../components/ui/button'
 import { api } from '../api/client'
@@ -17,6 +17,7 @@ const operatorItems = [
 const managerItems = [
   ['Главная', '/manager', House, ['/incidents']], ['Контакт-центр', '/manager/contact-center', Phone, ['/live', '/calls/*']], ['Обращения', '/tickets', Ticket, ['/queues']],
   ['Клиенты', '/customers', Users, []], ['Аналитика', '/analytics', BarChart3, []], ['Команда', '/employees', UsersRound, ['/departments']],
+  ['База знаний', '/manager/knowledge', BookOpen, []],
 ] as const
 
 export function AppShell() {
@@ -102,7 +103,7 @@ export function AppShell() {
       </div>
       <nav id="sidebar-navigation" className="side-nav" aria-label="Разделы IRIS">
         {items.map(([name, route, Icon, related]) => {
-          const section = route === home(user) ? route : route + '/*'
+          const section = route === home(user) ? { path: route, end: true } : route + '/*'
           const active = [section, ...related].some(path => matchPath(path, location.pathname))
           return <Link key={route} to={route} className={active ? 'active' : undefined} aria-current={active ? (matchPath(route, location.pathname) ? 'page' : 'location') : undefined}
             title={collapsed ? name : undefined} aria-label={name} onClick={dismissOverlays}><Icon size={22} /><span>{name}</span></Link>

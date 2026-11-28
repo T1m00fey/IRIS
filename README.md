@@ -73,3 +73,4 @@ Playwright обращается к уже запущенному демо. По�
 - [OpenAPI](contracts/openapi.json)
 - [Статус V3](docs/PROJECT_STATUS.md)
 - [Contact Center Core](docs/CONTACT_CENTER.md)
+- [База знаний для Voice AI](docs/VOICE_KNOWLEDGE_API.md)

@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core import crm_models  # Registers CRM and authorization models with Base.
+from app.core import knowledge_models  # Registers the knowledge base table with Base.
 from app.core.contact_center.models import DepartmentRecord
 from app.database import DATABASE_PATH, Base, enable_wal, engine
 

@@ -20,6 +20,8 @@ import { PageState } from '../components/PageState'
 
 const CompanyAnalytics = lazy(() => import('../workspaces/manager/CompanyAnalytics').then(module => ({ default: module.CompanyAnalytics })))
 const CustomersPage = lazy(() => import('../pages/CustomersPage').then(module => ({ default: module.CustomersPage })))
+const KnowledgeBase = lazy(() => import('../workspaces/manager/knowledge/KnowledgeBase').then(module => ({ default: module.KnowledgeBase })))
+const KnowledgeArticle = lazy(() => import('../workspaces/manager/knowledge/KnowledgeBase').then(module => ({ default: module.KnowledgeArticle })))
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 12000, retry: 1 } } })
 
@@ -41,6 +43,9 @@ createRoot(document.getElementById('root')!).render(<StrictMode><QueryClientProv
         <Route element={<SessionGate role="manager" />}>
           <Route path="manager" element={<ManagerHome />} />
           <Route path="manager/contact-center" element={<ContactCenter />} />
+          <Route path="manager/knowledge" element={<Suspense fallback={<PageState loading />}><KnowledgeBase /></Suspense>} />
+          <Route path="manager/knowledge/new" element={<Suspense fallback={<PageState loading />}><KnowledgeArticle /></Suspense>} />
+          <Route path="manager/knowledge/:articleId" element={<Suspense fallback={<PageState loading />}><KnowledgeArticle /></Suspense>} />
           <Route path="live" element={<CallsPage key="live" live />} />
           <Route path="queues" element={<TicketsPage key="queue" queue />} />
           <Route path="customers" element={<Suspense fallback={<PageState loading />}><CustomersPage /></Suspense>} />

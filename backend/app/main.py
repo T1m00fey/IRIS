@@ -12,6 +12,7 @@ from app.api.analytics import router as analytics_router
 from app.api.contact_center import router as contact_center_router
 from app.api.contact_center_voice import router as voice_router
 from app.api.customers import router as customers_router
+from app.api.knowledge import manager_router as knowledge_router, voice_router as voice_knowledge_router
 from app.api.manager import router as manager_router
 from app.api.operations import router as operations_router
 from app.api.operator import router as operator_router
@@ -89,6 +90,8 @@ manager_access = {
 app.include_router(auth_router)
 app.include_router(analytics_router, **manager_access)
 app.include_router(customers_router, **manager_access)
+app.include_router(knowledge_router, **manager_access)
+app.include_router(voice_knowledge_router)
 app.include_router(manager_router, **manager_access)
 app.include_router(operations_router, **manager_access)
 app.include_router(operator_router)

@@ -1,0 +1,34 @@
+.knowledge-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 16px var(--card-padding);
+  border-bottom: 1px solid var(--border);
+}
+
+.knowledge-filters .filter-label:first-child { flex: 1 1 260px; }
+.knowledge-filters .field, .knowledge-fields .field { width: 100%; }
+.knowledge-table { min-width: 570px; }
+.knowledge-table th:first-child { width: 42%; }
+.knowledge-page-reset { padding: 0 var(--card-padding) 16px; }
+.knowledge-editor { display: grid; gap: 16px; max-width: 900px; }
+.knowledge-back { display: inline-flex; align-items: center; gap: 7px; justify-self: start; }
+.knowledge-form-heading { flex-wrap: wrap; }
+.knowledge-fields {
+  display: grid;
+  gap: 16px;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 18px var(--card-padding);
+  border: 0;
+}
+
+.knowledge-fields textarea { line-height: 1.55; resize: vertical; }
+.knowledge-hint, .knowledge-feedback, .knowledge-fields .alert { margin: 0; }
+.knowledge-hint { color: var(--muted-foreground); font-size: 13px; }
+.knowledge-actions { flex-wrap: wrap; }
+
+@media (max-width: 560px) {
+  .knowledge-filters .filter-label { flex-basis: 100%; }
+}

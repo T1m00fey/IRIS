@@ -12,6 +12,7 @@ from tempfile import TemporaryDirectory
 from time import monotonic, sleep
 from unittest import TestCase
 from urllib.error import HTTPError, URLError
+from urllib.parse import quote
 from urllib.request import ProxyHandler, Request, build_opener
 
 
@@ -22,6 +23,9 @@ OPERATOR = "test-operator-1"
 OTHER_OPERATOR = "test-operator-2"
 CONNECTION_OPERATOR = "test-operator-3"
 VOICE_TOKEN = "test-voice-worker"
+KNOWLEDGE_TOKEN = "test-knowledge-reader"
+KNOWLEDGE = "/api/v1/knowledge/articles"
+VOICE_KNOWLEDGE = VOICE + "/knowledge"
 DEPARTMENT = "technical_support"
 
 
@@ -55,6 +59,7 @@ class ContactCenterTest(TestCase):
                 OPERATOR: "operator_1", OTHER_OPERATOR: "operator_2", CONNECTION_OPERATOR: "operator_3",
             }),
             "IRIS_VOICE_TOKEN": VOICE_TOKEN,
+            "IRIS_VOICE_KNOWLEDGE_TOKEN": KNOWLEDGE_TOKEN,
             "IRIS_ASSIGNMENT_TIMEOUT_SECONDS": "15",
             "IRIS_CONNECTION_TIMEOUT_SECONDS": "15",
         }
@@ -162,6 +167,66 @@ class ContactCenterTest(TestCase):
 
     def finish(self, call_path, status="completed", outcome="unresolved"):
         return self.voice("POST", call_path + "/finish", payload={"status": status, "outcome": outcome})
+
+    def test_knowledge_publication_lifecycle(self):
+        manager = self.browser_session("manager")
+        article = self.request("POST", KNOWLEDGE, headers=manager, expected=201, payload={
+            "title": "Подключение роутера", "category": "instructions", "body": "Включите роутер в розетку.",
+        })
+        article_path = KNOWLEDGE + "/" + article["id"]
+        public_path = VOICE_KNOWLEDGE + "/articles/" + article["id"]
+        search = VOICE_KNOWLEDGE + "/search?q=" + quote("РОУТЕР розётку")
+        self.assertEqual(article["status"], "draft")
+        self.assertEqual(self.request("GET", search, token=KNOWLEDGE_TOKEN)["items"], [])
+        self.request("GET", public_path, token=KNOWLEDGE_TOKEN, expected=404)
+
+        published = self.request("POST", article_path + "/publish", headers=manager, payload={"version": article["version"]})
+        self.assertEqual(self.request("GET", search + "&category=instructions", token=KNOWLEDGE_TOKEN)["items"][0]["id"], article["id"])
+        self.assertEqual(self.request("GET", search + "&category=faq", token=KNOWLEDGE_TOKEN)["items"], [])
+        updated = self.request("PUT", article_path, headers=manager, payload={
+            "title": "Настройка Wi-Fi", "category": "faq", "body": "Используйте данные с наклейки.", "version": published["version"],
+        })
+        self.assertTrue(updated["has_unpublished_changes"])
+        self.request("POST", article_path + "/archive", headers=manager, payload={"version": published["version"]}, expected=409)
+        manager_search = self.request("GET", KNOWLEDGE + "?q=Wi-Fi&status=published&category=faq", headers=manager)
+        self.assertEqual(manager_search["items"][0]["title"], updated["title"])
+        with self.open_request(public_path, token=KNOWLEDGE_TOKEN) as response:
+            self.assertEqual(response.headers["Cache-Control"], "no-store")
+            self.assertEqual(json.load(response)["body"], article["body"])
+        self.assertEqual(self.request("GET", search, token=KNOWLEDGE_TOKEN)["items"][0]["title"], article["title"])
+        self.assertEqual(self.request("GET", VOICE_KNOWLEDGE + "/search?q=Wi-Fi", token=KNOWLEDGE_TOKEN)["items"], [])
+
+        republished = self.request("POST", article_path + "/publish", headers=manager, payload={"version": updated["version"]})
+        self.assertEqual(self.request("GET", public_path, token=KNOWLEDGE_TOKEN)["body"], updated["body"])
+        self.request("POST", article_path + "/archive", headers=manager, payload={"version": republished["version"]})
+        self.assertEqual(self.request("GET", VOICE_KNOWLEDGE + "/search?q=Wi-Fi", token=KNOWLEDGE_TOKEN)["items"], [])
+        self.request("GET", public_path, token=KNOWLEDGE_TOKEN, expected=404)
+        self.stop_api()
+        self.start_api()
+        self.assertEqual(self.request("GET", article_path, headers=manager)["status"], "archived")
+
+    def test_knowledge_separates_browser_and_service_access(self):
+        manager = self.browser_session("manager")
+        operator = self.browser_session("operator")
+        search = VOICE_KNOWLEDGE + "/search?q=tariff"
+        self.request("GET", KNOWLEDGE, expected=401)
+        self.request("GET", KNOWLEDGE, headers=operator, expected=403)
+        self.request("POST", KNOWLEDGE, headers={**manager, "Origin": "https://other.example"}, payload={}, expected=403)
+        self.request("POST", KNOWLEDGE, headers=manager, payload={"title": " ", "body": "Text", "category": "faq"}, expected=422)
+        self.request("GET", search, headers=manager, expected=401)
+        for token in (VOICE_TOKEN, OPERATOR):
+            self.request("GET", search, token=token, expected=401)
+        self.request("GET", KNOWLEDGE, token=KNOWLEDGE_TOKEN, expected=401)
+        self.voice("POST", "/calls", token=KNOWLEDGE_TOKEN, payload={}, expected=401)
+        self.request("GET", search + "&limit=21", token=KNOWLEDGE_TOKEN, expected=422)
+        self.stop_api()
+        self.env["IRIS_CONTACT_CENTER"] = "0"
+        self.start_api()
+        self.request("GET", search, token=KNOWLEDGE_TOKEN)
+        self.stop_api()
+        self.env.pop("IRIS_VOICE_KNOWLEDGE_TOKEN")
+        self.start_api()
+        self.request("GET", search, token=KNOWLEDGE_TOKEN, expected=503)
 
     def test_voice_and_operator_lifecycle_with_crm_and_case(self):
         self.operator("GET", "/workspace", token=None, expected=401)
